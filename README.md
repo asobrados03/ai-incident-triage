@@ -12,7 +12,10 @@ python -m venv .venv
 python -m pip install -e ".[test]"
 ```
 
-La configuración se realiza mediante variables de entorno. Actualmente se admite `APP_NAME` para cambiar el nombre de la aplicación.
+La configuración se realiza mediante variables de entorno:
+
+- `APP_NAME`: nombre de la aplicación.
+- `DATABASE_URL`: URL SQLAlchemy de la base de datos. Por defecto es `sqlite:///./incidents.db`.
 
 ## Ejecución
 
@@ -28,4 +31,4 @@ La API estará disponible en `http://127.0.0.1:8000` y la documentación interac
 pytest
 ```
 
-Las incidencias se almacenan en memoria en esta primera fase. Se crean en estado `created`; el análisis explícito y el resto del flujo de triaje quedan para fases posteriores.
+Las incidencias se almacenan en SQLite en esta primera fase y se crean en estado `created`; el análisis explícito y el resto del flujo de triaje quedan para fases posteriores. El archivo local `incidents.db` se ignora en Git.

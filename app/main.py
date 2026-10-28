@@ -1,20 +1,35 @@
+from contextlib import asynccontextmanager
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.database import create_tables, engine, get_db_session
+from app.repository import IncidentRepository
 from app.schemas import IncidentCreate, IncidentResponse
 from app.service import IncidentService
-from app.storage import IncidentStore
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name, version="0.1.0")
-store = IncidentStore()
-service = IncidentService(store)
 
 
-def get_incident_service() -> IncidentService:
-    return service
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    create_tables(engine)
+    yield
+
+
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+
+def get_incident_service(
+    session: Session = Depends(get_db_session),
+) -> IncidentService:
+    return IncidentService(IncidentRepository(session))
 
 
 @app.get("/health")

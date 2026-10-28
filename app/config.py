@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Sistema inteligente de triaje de incidencias"
+    database_url: str = "sqlite:///./incidents.db"
 
     model_config = SettingsConfigDict(
         env_prefix="",
