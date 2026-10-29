@@ -1,11 +1,13 @@
 from contextlib import asynccontextmanager
+import logging
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.config import get_settings, validate_runtime_settings
 from app.database import create_tables, engine, get_db_session
+from app.logging_config import configure_logging
 from app.analyzer import (
     AnalyzerConfigurationError,
     AnalyzerProviderUnavailableError,
@@ -24,10 +26,13 @@ from app.service import (
 )
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    configure_logging()
+    validate_runtime_settings(settings)
     create_tables(engine)
     yield
 
@@ -55,7 +60,10 @@ def get_incident_service(
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "analyzer_backend": settings.analyzer_backend,
+    }
 
 
 @app.post(
@@ -116,7 +124,13 @@ def analyze_incident(
     ) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=str(error),
+            detail=(
+                "Analyzer provider unavailable"
+                if isinstance(error, AnalyzerProviderUnavailableError)
+                else "Analyzer provider returned an invalid response"
+                if isinstance(error, AnalyzerResponseError)
+                else "Invalid analyzer configuration"
+            ),
         ) from error
 
 

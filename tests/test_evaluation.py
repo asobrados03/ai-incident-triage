@@ -20,6 +20,8 @@ def test_fake_evaluation_is_reproducible() -> None:
     assert metrics.valid_responses == 8
     assert metrics.errors == 0
     assert metrics.error_rate == 0
+    assert metrics.latency_ms_total >= 0
+    assert metrics.latency_ms_average >= 0
     assert metrics.category_accuracy == 1
     assert metrics.severity_accuracy == 1
     assert metrics.priority_accuracy == 1
@@ -34,6 +36,8 @@ def test_evaluate_empty_dataset_returns_zero_metrics() -> None:
     assert metrics.valid_responses == 0
     assert metrics.errors == 0
     assert metrics.error_rate == 0
+    assert metrics.latency_ms_total == 0
+    assert metrics.latency_ms_average == 0
 
 
 def test_evaluate_counts_invalid_results_as_errors() -> None:

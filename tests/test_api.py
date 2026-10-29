@@ -1,13 +1,15 @@
+import asyncio
 from collections.abc import Iterator
 from uuid import uuid4
 
+import httpx
 import pytest
 from fastapi import Depends
-from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.analyzer import AnalyzerProviderUnavailableError, AnalyzerTimeoutError
+from app.config import Settings, validate_runtime_settings
 from app.database import Base, get_db_session
 from app.main import app
 from app.main import get_incident_service
@@ -15,8 +17,32 @@ from app.repository import IncidentRepository
 from app.service import IncidentService
 
 
+class SyncASGIClient:
+    def __init__(self) -> None:
+        self._transport = httpx.ASGITransport(app=app)
+
+    def request(self, method: str, url: str, **kwargs) -> httpx.Response:
+        async def send() -> httpx.Response:
+            async with httpx.AsyncClient(
+                transport=self._transport,
+                base_url="http://testserver",
+            ) as client:
+                return await client.request(method, url, **kwargs)
+
+        return asyncio.run(send())
+
+    def get(self, url: str, **kwargs) -> httpx.Response:
+        return self.request("GET", url, **kwargs)
+
+    def post(self, url: str, **kwargs) -> httpx.Response:
+        return self.request("POST", url, **kwargs)
+
+    def patch(self, url: str, **kwargs) -> httpx.Response:
+        return self.request("PATCH", url, **kwargs)
+
+
 @pytest.fixture
-def client(tmp_path) -> Iterator[TestClient]:
+def client(tmp_path) -> Iterator[SyncASGIClient]:
     database_engine = create_engine(
         f"sqlite:///{tmp_path / 'test.db'}",
         connect_args={"check_same_thread": False},
@@ -37,21 +63,51 @@ def client(tmp_path) -> Iterator[TestClient]:
 
     app.dependency_overrides[get_db_session] = get_test_session
     try:
-        with TestClient(app) as test_client:
-            yield test_client
+        yield SyncASGIClient()
     finally:
         app.dependency_overrides.clear()
         database_engine.dispose()
 
 
-def test_health(client: TestClient) -> None:
+def test_health(client: SyncASGIClient) -> None:
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "analyzer_backend": "fake"}
 
 
-def test_create_incident_with_optional_fields(client: TestClient) -> None:
+def test_health_does_not_require_analyzer_provider(client: SyncASGIClient) -> None:
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert response.json()["analyzer_backend"] == "fake"
+
+
+@pytest.mark.parametrize(
+    "settings",
+    [
+        Settings(analyzer_backend="unsupported"),
+        Settings(
+            analyzer_backend="ollama",
+            ollama_base_url="not-a-url",
+        ),
+        Settings(
+            analyzer_backend="ollama",
+            ollama_model=" ",
+        ),
+        Settings(
+            analyzer_backend="ollama",
+            ollama_timeout_seconds=0,
+        ),
+    ],
+)
+def test_invalid_runtime_settings_are_rejected(settings: Settings) -> None:
+    with pytest.raises(ValueError):
+        validate_runtime_settings(settings)
+
+
+def test_create_incident_with_optional_fields(client: SyncASGIClient) -> None:
     payload = {
         "title": "No se puede iniciar sesión",
         "description": "El formulario devuelve un error inesperado.",
@@ -73,7 +129,7 @@ def test_create_incident_with_optional_fields(client: TestClient) -> None:
     assert "created_at" in body
 
 
-def test_incident_survives_new_database_session(client: TestClient) -> None:
+def test_incident_survives_new_database_session(client: SyncASGIClient) -> None:
     created = client.post(
         "/incidents",
         json={"title": "Fallo persistente", "description": "Descripción."},
@@ -87,7 +143,7 @@ def test_incident_survives_new_database_session(client: TestClient) -> None:
     assert response.json()["id"] == incident_id
 
 
-def test_get_existing_incident(client: TestClient) -> None:
+def test_get_existing_incident(client: SyncASGIClient) -> None:
     created = client.post(
         "/incidents",
         json={"title": "Fallo", "description": "Descripción del fallo."},
@@ -101,7 +157,7 @@ def test_get_existing_incident(client: TestClient) -> None:
 
 
 def test_create_incident_validates_required_and_length_fields(
-    client: TestClient,
+    client: SyncASGIClient,
 ) -> None:
     response = client.post(
         "/incidents",
@@ -111,7 +167,20 @@ def test_create_incident_validates_required_and_length_fields(
     assert response.status_code == 422
 
 
-def test_create_incident_rejects_unknown_fields(client: TestClient) -> None:
+def test_create_incident_rejects_too_many_components(client: SyncASGIClient) -> None:
+    response = client.post(
+        "/incidents",
+        json={
+            "title": "Fallo",
+            "description": "Descripción.",
+            "components": [f"component-{index}" for index in range(21)],
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_incident_rejects_unknown_fields(client: SyncASGIClient) -> None:
     response = client.post(
         "/incidents",
         json={
@@ -124,14 +193,14 @@ def test_create_incident_rejects_unknown_fields(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_get_missing_incident_returns_404(client: TestClient) -> None:
+def test_get_missing_incident_returns_404(client: SyncASGIClient) -> None:
     response = client.get(f"/incidents/{uuid4()}")
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Incident not found"}
 
 
-def test_analyze_incident_returns_structured_triage(client: TestClient) -> None:
+def test_analyze_incident_returns_structured_triage(client: SyncASGIClient) -> None:
     created = client.post(
         "/incidents",
         json={
@@ -161,7 +230,7 @@ def test_analyze_incident_returns_structured_triage(client: TestClient) -> None:
     assert body["triage"]["created_at"]
 
 
-def test_analysis_persists_and_is_returned_by_get(client: TestClient) -> None:
+def test_analysis_persists_and_is_returned_by_get(client: SyncASGIClient) -> None:
     created = client.post(
         "/incidents",
         json={"title": "Fallo", "description": "No funciona."},
@@ -178,7 +247,7 @@ def test_analysis_persists_and_is_returned_by_get(client: TestClient) -> None:
 
 
 def test_post_get_and_analysis_work_across_distinct_sessions(
-    client: TestClient,
+    client: SyncASGIClient,
 ) -> None:
     created = client.post(
         "/incidents",
@@ -197,14 +266,14 @@ def test_post_get_and_analysis_work_across_distinct_sessions(
     assert analyzed.json()["status"] == "analyzed"
 
 
-def test_analyze_missing_incident_returns_404(client: TestClient) -> None:
+def test_analyze_missing_incident_returns_404(client: SyncASGIClient) -> None:
     response = client.post(f"/incidents/{uuid4()}/analysis")
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Incident not found"}
 
 
-def test_analyze_already_analyzed_incident_returns_409(client: TestClient) -> None:
+def test_analyze_already_analyzed_incident_returns_409(client: SyncASGIClient) -> None:
     created = client.post(
         "/incidents",
         json={"title": "Fallo", "description": "No funciona."},
@@ -220,7 +289,7 @@ def test_analyze_already_analyzed_incident_returns_409(client: TestClient) -> No
 
 
 def test_analyzer_provider_error_returns_502_and_marks_failed(
-    client: TestClient,
+    client: SyncASGIClient,
 ) -> None:
     class UnavailableAnalyzer:
         def analyze(self, incident):
@@ -243,13 +312,14 @@ def test_analyzer_provider_error_returns_502_and_marks_failed(
     fetched = client.get(f"/incidents/{incident_id}")
 
     assert response.status_code == 502
-    assert response.json()["detail"] == "Ollama unavailable"
+    assert response.json()["detail"] == "Analyzer provider unavailable"
+    assert "ollama" not in response.json()["detail"].lower()
     assert fetched.status_code == 200
     assert fetched.json()["status"] == "analysis_failed"
 
 
 def test_analyzer_timeout_returns_504_and_marks_failed(
-    client: TestClient,
+    client: SyncASGIClient,
 ) -> None:
     class TimeoutAnalyzer:
         def analyze(self, incident):
@@ -277,7 +347,7 @@ def test_analyzer_timeout_returns_504_and_marks_failed(
     assert fetched.json()["status"] == "analysis_failed"
 
 
-def create_analyzed_incident(client: TestClient) -> str:
+def create_analyzed_incident(client: SyncASGIClient) -> str:
     created = client.post(
         "/incidents",
         json={
@@ -294,7 +364,7 @@ def create_analyzed_incident(client: TestClient) -> str:
     return incident_id
 
 
-def test_review_accepts_ai_result_without_field_changes(client: TestClient) -> None:
+def test_review_accepts_ai_result_without_field_changes(client: SyncASGIClient) -> None:
     incident_id = create_analyzed_incident(client)
 
     response = client.patch(
@@ -312,7 +382,7 @@ def test_review_accepts_ai_result_without_field_changes(client: TestClient) -> N
     assert body["triage"]["review"]["final"]["category"] == "bug"
 
 
-def test_review_applies_partial_correction_and_preserves_original(client: TestClient) -> None:
+def test_review_applies_partial_correction_and_preserves_original(client: SyncASGIClient) -> None:
     incident_id = create_analyzed_incident(client)
 
     response = client.patch(
@@ -333,7 +403,7 @@ def test_review_applies_partial_correction_and_preserves_original(client: TestCl
     assert body["triage"]["review"]["final"]["priority"] == "urgent"
 
 
-def test_review_rejects_empty_request(client: TestClient) -> None:
+def test_review_rejects_empty_request(client: SyncASGIClient) -> None:
     incident_id = create_analyzed_incident(client)
 
     response = client.patch(f"/incidents/{incident_id}/triage", json={})
@@ -341,7 +411,7 @@ def test_review_rejects_empty_request(client: TestClient) -> None:
     assert response.status_code == 422
 
 
-def test_review_without_analysis_returns_409(client: TestClient) -> None:
+def test_review_without_analysis_returns_409(client: SyncASGIClient) -> None:
     created = client.post(
         "/incidents",
         json={"title": "Fallo", "description": "No funciona."},
@@ -356,7 +426,7 @@ def test_review_without_analysis_returns_409(client: TestClient) -> None:
     assert response.json()["detail"] == "Incident has no triage result"
 
 
-def test_review_missing_incident_returns_404(client: TestClient) -> None:
+def test_review_missing_incident_returns_404(client: SyncASGIClient) -> None:
     response = client.patch(
         f"/incidents/{uuid4()}/triage",
         json={"severity": "high"},
@@ -366,7 +436,7 @@ def test_review_missing_incident_returns_404(client: TestClient) -> None:
     assert response.json() == {"detail": "Incident not found"}
 
 
-def test_duplicate_review_returns_409(client: TestClient) -> None:
+def test_duplicate_review_returns_409(client: SyncASGIClient) -> None:
     incident_id = create_analyzed_incident(client)
     first = client.patch(
         f"/incidents/{incident_id}/triage",

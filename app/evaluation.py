@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,8 @@ class EvaluationMetrics:
     confidence_accuracy: float
     errors: int
     error_rate: float
+    latency_ms_total: float
+    latency_ms_average: float
 
     def as_dict(self) -> dict[str, int | float]:
         return asdict(self)
@@ -55,6 +58,7 @@ def evaluate(
     total = len(cases)
     valid_responses = 0
     errors = 0
+    latency_ms_total = 0.0
     category_hits = 0
     severity_hits = 0
     priority_hits = 0
@@ -62,6 +66,7 @@ def evaluate(
     confidence_hits = 0
 
     for case in cases:
+        started = time.perf_counter()
         try:
             result = analyzer.analyze(case.input)
             if not isinstance(result, TriageResult):
@@ -69,7 +74,9 @@ def evaluate(
             valid_responses += 1
         except Exception:
             errors += 1
+            latency_ms_total += (time.perf_counter() - started) * 1000
             continue
+        latency_ms_total += (time.perf_counter() - started) * 1000
 
         expected = case.expected
         category_hits += result.category.value == expected["category"]
@@ -89,6 +96,8 @@ def evaluate(
         confidence_accuracy=confidence_hits / denominator,
         errors=errors,
         error_rate=errors / denominator,
+        latency_ms_total=latency_ms_total,
+        latency_ms_average=latency_ms_total / denominator,
     )
 
 

@@ -31,8 +31,8 @@ class TriageResult(BaseModel):
     severity: IncidentSeverity
     priority: IncidentPriority
     summary: str = Field(min_length=1, max_length=1000)
-    affected_components: list[str]
-    missing_information: list[str]
+    affected_components: list[str] = Field(default_factory=list, max_length=20)
+    missing_information: list[str] = Field(default_factory=list, max_length=20)
     justification: str = Field(min_length=1, max_length=2000)
     confidence: AnalysisConfidence
 

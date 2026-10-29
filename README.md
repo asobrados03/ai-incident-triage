@@ -78,7 +78,7 @@ Configura el backend antes de arrancar la API:
 $env:ANALYZER_BACKEND = "ollama"
 $env:OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 $env:OLLAMA_MODEL = "qwen3.5:4b"
-$env:OLLAMA_TIMEOUT_SECONDS = "60"
+$env:OLLAMA_TIMEOUT_SECONDS = "180"
 uvicorn app.main:app --reload
 ```
 
@@ -86,12 +86,24 @@ El adaptador solicita una respuesta JSON y la valida estrictamente contra `Triag
 disponible o devuelve una respuesta inválida, la API responde `502` y marca el análisis como `analysis_failed`;
 si supera el timeout, responde `504`. La aplicación no inicia Ollama ni descarga modelos automáticamente.
 
+`GET /health` devuelve únicamente el estado de la aplicación y el backend configurado, sin exponer la URL de
+Ollama, el nombre del modelo ni credenciales:
+
+```json
+{"status": "ok", "analyzer_backend": "fake"}
+```
+
+En desarrollo se recomienda mantener `ANALYZER_BACKEND=fake`. En producción, valida explícitamente las variables
+`ANALYZER_BACKEND`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL` y `OLLAMA_TIMEOUT_SECONDS` antes del arranque; una configuración
+inválida impide iniciar la aplicación. No incluyas credenciales en URLs, logs o respuestas. El uso de Ollama implica
+coste de CPU/GPU, memoria y latencia local; establece un timeout finito y limita el tamaño de las entradas.
+
 ## Evaluación offline
 
 El dataset versionado `eval/data/incidents.json` contiene ocho incidencias de referencia con etiquetas esperadas.
 La evaluación compara únicamente campos estructurados: `category`, `severity` y `priority` requieren igualdad exacta;
 `missing_information` requiere igualdad exacta de la lista; y `confidence` se compara como indicador de incertidumbre.
-También informa respuestas válidas, errores y tasa de errores. No puntúa `summary` o `justification` por similitud de
+También informa respuestas válidas, errores, tasa de errores y latencia total/media por caso. No puntúa `summary` o `justification` por similitud de
 texto libre, por lo que el resultado no representa una evaluación completa de calidad lingüística.
 
 Ejecuta el baseline determinista sin Ollama:
@@ -112,3 +124,38 @@ python -m app.evaluation --backend ollama
 
 Esta ejecución puede producir resultados variables y no se mezcla con pytest. Los tests usan `FakeAnalyzer` o
 analizadores locales controlados y nunca hacen llamadas reales a Ollama.
+
+## Auditoría de fases
+
+| Fase | Estado | Evidencia |
+|---|---|---|
+| 5 — Evaluación | Completa | Dataset de 8 casos, exactitud estructurada, respuestas inválidas/errores, `missing_information`, confianza y latencia total/media. |
+| 6 — Robustez/API | Completa | Revisión humana, idempotencia/conflictos, validación de configuración, límites, errores HTTP, logs JSON y capas separadas. |
+| 7 — Docker/CI | Completa | `Dockerfile`, `.dockerignore` y GitHub Actions con pytest y validación de Dockerfile. |
+
+La evaluación no puntúa `summary` ni `justification` por similitud textual. El `FakeAnalyzer` es un baseline
+determinista de plumbing; sus métricas no representan la calidad de un LLM. Ollama puede variar por modelo,
+hardware y temperatura. Los logs de análisis son JSON y contienen solo IDs, estados, duración y tipos de error;
+no registran descripciones, prompts, respuestas ni secretos.
+
+## Docker y CI
+
+La imagen usa SQLite por defecto y no incluye `incidents.db`, tests, credenciales ni artefactos locales:
+
+```powershell
+docker build -t triaje-api .
+docker run --rm -p 8000:8000 -v "${PWD}/data:/data" -e DATABASE_URL=sqlite:////data/incidents.db triaje-api
+```
+
+Para persistir SQLite en Windows, monta un directorio y usa una URL absoluta dentro del contenedor. `DATABASE_URL`
+puede apuntar a otro motor compatible con SQLAlchemy, pero PostgreSQL no se incorpora todavía porque no aporta valor
+necesario para este incremento. CI instala el proyecto, ejecuta `python -m pytest -q` y valida el Dockerfile.
+
+## Fallos conocidos y límites
+
+- SQLite es adecuado para desarrollo y una ejecución local sencilla, pero no ofrece la concurrencia ni operación
+  multiinstancia de PostgreSQL.
+- La evaluación fake mide estabilidad del plumbing y reglas deterministas, no la calidad semántica del modelo.
+- Ollama puede devolver respuestas inválidas, agotar el timeout o variar por hardware/modelo; esos casos se exponen como
+  errores HTTP y no activan fallback silencioso.
+- El contenedor no inicia Ollama: debe ejecutarse aparte y configurarse mediante variables de entorno.
