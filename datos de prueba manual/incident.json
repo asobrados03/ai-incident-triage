@@ -1,0 +1,9 @@
+﻿{
+  "title": "Error al guardar el formulario",
+  "description": "Al pulsar Guardar en el formulario de contacto no ocurre nada.",
+  "steps_to_reproduce": "1. Abrir /contacto 2. Rellenar campos 3. Pulsar Guardar",
+  "expected_behavior": "Se muestra un mensaje de éxito.",
+  "actual_behavior": "El botón no responde.",
+  "environment": "Chrome 130, Windows 11",
+  "components": ["frontend", "api"]
+}
