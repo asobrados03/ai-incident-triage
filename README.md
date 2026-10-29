@@ -42,6 +42,21 @@ resultado en `triage_results` y cambia el estado de la incidencia de `created` a
 a `analyzed`. Si ya existe un análisis, el endpoint devuelve `409 Conflict`. La integración con un LLM o proveedor
 externo se añadirá en otra fase. El archivo local `incidents.db` se ignora en Git.
 
+## Revisión humana
+
+Después de analizar una incidencia, se puede aceptar la propuesta o corregir parcialmente sus campos:
+
+```powershell
+curl.exe -X PATCH http://127.0.0.1:8000/incidents/{incident_id}/triage `
+  -H "Content-Type: application/json" `
+  --data-raw '{"severity":"critical","priority":"urgent","review_comment":"Impacto confirmado"}'
+```
+
+La respuesta conserva los campos actuales de `triage` como propuesta original de IA y añade `triage.review.final`
+con los valores finales revisados, además de `reviewed`, `source`, `review_comment` y `reviewed_at`. El estado pasa
+de `analyzed` a `reviewed`. Un comentario sin correcciones acepta la propuesta sin cambios; una petición vacía,
+una incidencia sin análisis o una revisión duplicada se rechazan. En los dos últimos casos se devuelve `409`.
+
 ## Analizador LLM local opcional
 
 El proyecto puede usar Ollama como runtime local con el modelo `qwen3.5:4b`. `FakeAnalyzer` sigue siendo el valor

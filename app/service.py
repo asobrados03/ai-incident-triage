@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 from app.analyzer import IncidentAnalyzer
 from app.models import IncidentStatus
 from app.repository import IncidentRepository
-from app.schemas import IncidentCreate, IncidentResponse
+from app.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest
 
 
 class IncidentNotFoundError(Exception):
@@ -12,6 +12,10 @@ class IncidentNotFoundError(Exception):
 
 
 class IncidentAnalysisConflictError(Exception):
+    pass
+
+
+class IncidentReviewConflictError(Exception):
     pass
 
 
@@ -58,3 +62,23 @@ class IncidentService:
         if analyzed is None:
             raise IncidentNotFoundError
         return analyzed
+
+    def review(
+        self,
+        incident_id: UUID,
+        review: TriageReviewRequest,
+    ) -> IncidentResponse:
+        incident = self._repository.get(incident_id)
+        if incident is None:
+            raise IncidentNotFoundError
+        if incident.status is IncidentStatus.REVIEWED:
+            raise IncidentReviewConflictError("Incident has already been reviewed")
+        if incident.triage is None:
+            raise IncidentReviewConflictError("Incident has no triage result")
+
+        self._repository.create_review(incident_id, review)
+        self._repository.set_status(incident_id, IncidentStatus.REVIEWED)
+        reviewed = self._repository.get(incident_id)
+        if reviewed is None:
+            raise IncidentNotFoundError
+        return reviewed

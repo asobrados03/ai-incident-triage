@@ -15,10 +15,11 @@ from app.analyzer import (
     OllamaAnalyzer,
 )
 from app.repository import IncidentRepository
-from app.schemas import IncidentCreate, IncidentResponse
+from app.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest
 from app.service import (
     IncidentAnalysisConflictError,
     IncidentNotFoundError,
+    IncidentReviewConflictError,
     IncidentService,
 )
 
@@ -115,5 +116,28 @@ def analyze_incident(
     ) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(error),
+        ) from error
+
+
+@app.patch(
+    "/incidents/{incident_id}/triage",
+    response_model=IncidentResponse,
+)
+def review_incident_triage(
+    incident_id: UUID,
+    review: TriageReviewRequest,
+    incident_service: IncidentService = Depends(get_incident_service),
+) -> IncidentResponse:
+    try:
+        return incident_service.review(incident_id, review)
+    except IncidentNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found",
+        ) from error
+    except IncidentReviewConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
         ) from error

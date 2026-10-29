@@ -39,3 +39,25 @@ class TriageResultORM(Base):
     justification: Mapped[str] = mapped_column(String(2000), nullable=False)
     confidence: Mapped[str] = mapped_column(String(50), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class TriageReviewORM(Base):
+    __tablename__ = "triage_reviews"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    triage_id: Mapped[str] = mapped_column(
+        ForeignKey("triage_results.id"),
+        unique=True,
+        nullable=False,
+    )
+    category: Mapped[str] = mapped_column(String(50), nullable=False)
+    severity: Mapped[str] = mapped_column(String(50), nullable=False)
+    priority: Mapped[str] = mapped_column(String(50), nullable=False)
+    summary: Mapped[str] = mapped_column(String(1000), nullable=False)
+    affected_components: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    missing_information: Mapped[list[str]] = mapped_column(JSON, nullable=False)
+    justification: Mapped[str] = mapped_column(String(2000), nullable=False)
+    confidence: Mapped[str] = mapped_column(String(50), nullable=False)
+    review_comment: Mapped[str | None] = mapped_column(String(2000))
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    source: Mapped[str] = mapped_column(String(50), nullable=False, default="human")

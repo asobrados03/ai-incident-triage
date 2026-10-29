@@ -6,6 +6,7 @@ class IncidentStatus(StrEnum):
     ANALYZING = "analyzing"
     ANALYZED = "analyzed"
     ANALYSIS_FAILED = "analysis_failed"
+    REVIEWED = "reviewed"
 
 
 class IncidentCategory(StrEnum):

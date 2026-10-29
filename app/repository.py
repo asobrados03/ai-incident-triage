@@ -11,8 +11,14 @@ from app.models import (
     IncidentSeverity,
     IncidentStatus,
 )
-from app.orm_models import IncidentORM, TriageResultORM
-from app.schemas import IncidentResponse, TriageResult, TriageResultResponse
+from app.orm_models import IncidentORM, TriageResultORM, TriageReviewORM
+from app.schemas import (
+    IncidentResponse,
+    TriageResult,
+    TriageReviewRequest,
+    TriageReviewResponse,
+    TriageResultResponse,
+)
 
 
 class IncidentRepository:
@@ -79,7 +85,31 @@ class IncidentRepository:
                 TriageResultORM.incident_id == str(incident_id),
             ),
         )
-        return self._to_triage_response(record) if record is not None else None
+        if record is None:
+            return None
+        return self._to_triage_response(record).model_copy(
+            update={
+                "review": (
+                    self._to_review_response(review)
+                    if (review := self._get_review_for_triage(record.id))
+                    else None
+                ),
+            },
+        )
+
+    def get_review(self, incident_id: UUID) -> TriageReviewResponse | None:
+        triage = self._session.scalar(
+            select(TriageResultORM).where(
+                TriageResultORM.incident_id == str(incident_id),
+            ),
+        )
+        record = self._get_review_for_triage(triage.id) if triage else None
+        return self._to_review_response(record) if record is not None else None
+
+    def _get_review_for_triage(self, triage_id: str) -> TriageReviewORM | None:
+        return self._session.scalar(
+            select(TriageReviewORM).where(TriageReviewORM.triage_id == triage_id),
+        )
 
     def create_triage(
         self,
@@ -110,4 +140,64 @@ class IncidentRepository:
             justification=record.justification,
             confidence=AnalysisConfidence(record.confidence),
             created_at=record.created_at,
+        )
+
+    def create_review(
+        self,
+        incident_id: UUID,
+        review: TriageReviewRequest,
+    ) -> None:
+        triage = self._session.scalar(
+            select(TriageResultORM).where(
+                TriageResultORM.incident_id == str(incident_id),
+            ),
+        )
+        if triage is None:
+            return
+
+        values = {
+            "category": triage.category,
+            "severity": triage.severity,
+            "priority": triage.priority,
+            "summary": triage.summary,
+            "affected_components": triage.affected_components,
+            "missing_information": triage.missing_information,
+            "justification": triage.justification,
+            "confidence": triage.confidence,
+        }
+        values.update(
+            {
+                key: value.value if hasattr(value, "value") else value
+                for key, value in review.model_dump(exclude_none=True).items()
+                if key != "review_comment"
+            },
+        )
+        record = TriageReviewORM(
+            id=str(uuid4()),
+            triage_id=triage.id,
+            reviewed_at=datetime.now(timezone.utc),
+            source="human",
+            review_comment=review.review_comment,
+            **values,
+        )
+        self._session.add(record)
+        self._session.commit()
+
+    @staticmethod
+    def _to_review_response(record: TriageReviewORM) -> TriageReviewResponse:
+        return TriageReviewResponse(
+            reviewed=True,
+            source=record.source,
+            review_comment=record.review_comment,
+            reviewed_at=record.reviewed_at,
+            final=TriageResult(
+                category=IncidentCategory(record.category),
+                severity=IncidentSeverity(record.severity),
+                priority=IncidentPriority(record.priority),
+                summary=record.summary,
+                affected_components=record.affected_components,
+                missing_information=record.missing_information,
+                justification=record.justification,
+                confidence=AnalysisConfidence(record.confidence),
+            ),
         )

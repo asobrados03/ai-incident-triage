@@ -275,3 +275,108 @@ def test_analyzer_timeout_returns_504_and_marks_failed(
     assert response.json()["detail"] == "Analyzer provider timed out"
     assert fetched.status_code == 200
     assert fetched.json()["status"] == "analysis_failed"
+
+
+def create_analyzed_incident(client: TestClient) -> str:
+    created = client.post(
+        "/incidents",
+        json={
+            "title": "Fallo",
+            "description": "No funciona.",
+            "steps_to_reproduce": "Abrir la pantalla.",
+            "environment": "Producción",
+            "components": ["frontend"],
+        },
+    )
+    incident_id = created.json()["id"]
+    analyzed = client.post(f"/incidents/{incident_id}/analysis")
+    assert analyzed.status_code == 200
+    return incident_id
+
+
+def test_review_accepts_ai_result_without_field_changes(client: TestClient) -> None:
+    incident_id = create_analyzed_incident(client)
+
+    response = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={"review_comment": "Revisado y aceptado."},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "reviewed"
+    assert body["triage"]["category"] == "bug"
+    assert body["triage"]["review"]["reviewed"] is True
+    assert body["triage"]["review"]["source"] == "human"
+    assert body["triage"]["review"]["review_comment"] == "Revisado y aceptado."
+    assert body["triage"]["review"]["final"]["category"] == "bug"
+
+
+def test_review_applies_partial_correction_and_preserves_original(client: TestClient) -> None:
+    incident_id = create_analyzed_incident(client)
+
+    response = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={
+            "severity": "critical",
+            "priority": "urgent",
+            "review_comment": "Impacto confirmado por soporte.",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "reviewed"
+    assert body["triage"]["severity"] == "medium"
+    assert body["triage"]["priority"] == "medium"
+    assert body["triage"]["review"]["final"]["severity"] == "critical"
+    assert body["triage"]["review"]["final"]["priority"] == "urgent"
+
+
+def test_review_rejects_empty_request(client: TestClient) -> None:
+    incident_id = create_analyzed_incident(client)
+
+    response = client.patch(f"/incidents/{incident_id}/triage", json={})
+
+    assert response.status_code == 422
+
+
+def test_review_without_analysis_returns_409(client: TestClient) -> None:
+    created = client.post(
+        "/incidents",
+        json={"title": "Fallo", "description": "No funciona."},
+    )
+
+    response = client.patch(
+        f"/incidents/{created.json()['id']}/triage",
+        json={"severity": "high"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Incident has no triage result"
+
+
+def test_review_missing_incident_returns_404(client: TestClient) -> None:
+    response = client.patch(
+        f"/incidents/{uuid4()}/triage",
+        json={"severity": "high"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Incident not found"}
+
+
+def test_duplicate_review_returns_409(client: TestClient) -> None:
+    incident_id = create_analyzed_incident(client)
+    first = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={"review_comment": "Aceptado."},
+    )
+    second = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={"severity": "critical"},
+    )
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert second.json()["detail"] == "Incident has already been reviewed"
