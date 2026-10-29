@@ -15,7 +15,7 @@ python -m pip install -e ".[test]"
 La configuración se realiza mediante variables de entorno:
 
 - `APP_NAME`: nombre de la aplicación.
-- `DATABASE_URL`: URL SQLAlchemy de la base de datos. Por defecto es `sqlite:///./incidents.db`.
+- `DATABASE_URL`: URL SQLAlchemy de la base de datos. Por defecto apunta de forma absoluta a `incidents.db` en la raíz del proyecto, independientemente del directorio desde el que se arranque Uvicorn.
 
 ## Ejecución
 
@@ -31,4 +31,13 @@ La API estará disponible en `http://127.0.0.1:8000` y la documentación interac
 pytest
 ```
 
-Las incidencias se almacenan en SQLite en esta primera fase y se crean en estado `created`; el análisis explícito y el resto del flujo de triaje quedan para fases posteriores. El archivo local `incidents.db` se ignora en Git.
+Las incidencias se almacenan en SQLite. Se crean en estado `created` y el análisis se solicita explícitamente:
+
+```powershell
+curl -X POST http://127.0.0.1:8000/incidents/{incident_id}/analysis
+```
+
+El análisis actual usa `FakeAnalyzer`, un adaptador determinista y explicable para desarrollo y tests. Persiste el
+resultado en `triage_results` y cambia el estado de la incidencia de `created` a `analyzing` y finalmente
+a `analyzed`. Si ya existe un análisis, el endpoint devuelve `409 Conflict`. La integración con un LLM o proveedor
+externo se añadirá en otra fase. El archivo local `incidents.db` se ignora en Git.

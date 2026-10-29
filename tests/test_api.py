@@ -124,3 +124,91 @@ def test_get_missing_incident_returns_404(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Incident not found"}
+
+
+def test_analyze_incident_returns_structured_triage(client: TestClient) -> None:
+    created = client.post(
+        "/incidents",
+        json={
+            "title": "La pantalla está lenta",
+            "description": "El rendimiento del panel es muy lento.",
+            "steps_to_reproduce": "Abrir el panel.",
+            "environment": "Producción",
+            "components": ["frontend"],
+        },
+    )
+    incident_id = created.json()["id"]
+
+    response = client.post(f"/incidents/{incident_id}/analysis")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "analyzed"
+    assert body["triage"]["category"] == "performance"
+    assert body["triage"]["severity"] == "high"
+    assert body["triage"]["priority"] == "high"
+    assert body["triage"]["affected_components"] == ["frontend"]
+    assert body["triage"]["missing_information"] == []
+    assert body["triage"]["confidence"] == "high"
+    assert body["triage"]["summary"]
+    assert body["triage"]["justification"]
+    assert body["triage"]["id"]
+    assert body["triage"]["created_at"]
+
+
+def test_analysis_persists_and_is_returned_by_get(client: TestClient) -> None:
+    created = client.post(
+        "/incidents",
+        json={"title": "Fallo", "description": "No funciona."},
+    )
+    incident_id = created.json()["id"]
+
+    analyzed = client.post(f"/incidents/{incident_id}/analysis")
+    fetched = client.get(f"/incidents/{incident_id}")
+
+    assert analyzed.status_code == 200
+    assert fetched.status_code == 200
+    assert fetched.json()["status"] == "analyzed"
+    assert fetched.json()["triage"] == analyzed.json()["triage"]
+
+
+def test_post_get_and_analysis_work_across_distinct_sessions(
+    client: TestClient,
+) -> None:
+    created = client.post(
+        "/incidents",
+        json={"title": "Flujo completo", "description": "Debe persistir."},
+    )
+    incident_id = created.json()["id"]
+
+    fetched = client.get(f"/incidents/{incident_id}")
+    analyzed = client.post(f"/incidents/{incident_id}/analysis")
+
+    assert created.status_code == 201
+    assert fetched.status_code == 200
+    assert analyzed.status_code == 200
+    assert fetched.json()["id"] == incident_id
+    assert analyzed.json()["id"] == incident_id
+    assert analyzed.json()["status"] == "analyzed"
+
+
+def test_analyze_missing_incident_returns_404(client: TestClient) -> None:
+    response = client.post(f"/incidents/{uuid4()}/analysis")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Incident not found"}
+
+
+def test_analyze_already_analyzed_incident_returns_409(client: TestClient) -> None:
+    created = client.post(
+        "/incidents",
+        json={"title": "Fallo", "description": "No funciona."},
+    )
+    incident_id = created.json()["id"]
+
+    first = client.post(f"/incidents/{incident_id}/analysis")
+    second = client.post(f"/incidents/{incident_id}/analysis")
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert "analyzed" in second.json()["detail"]

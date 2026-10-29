@@ -6,9 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import create_tables, engine, get_db_session
+from app.analyzer import FakeAnalyzer
 from app.repository import IncidentRepository
 from app.schemas import IncidentCreate, IncidentResponse
-from app.service import IncidentService
+from app.service import (
+    IncidentAnalysisConflictError,
+    IncidentNotFoundError,
+    IncidentService,
+)
 
 settings = get_settings()
 
@@ -29,7 +34,7 @@ app = FastAPI(
 def get_incident_service(
     session: Session = Depends(get_db_session),
 ) -> IncidentService:
-    return IncidentService(IncidentRepository(session))
+    return IncidentService(IncidentRepository(session), FakeAnalyzer())
 
 
 @app.get("/health")
@@ -61,3 +66,25 @@ def get_incident(
             detail="Incident not found",
         )
     return incident
+
+
+@app.post(
+    "/incidents/{incident_id}/analysis",
+    response_model=IncidentResponse,
+)
+def analyze_incident(
+    incident_id: UUID,
+    incident_service: IncidentService = Depends(get_incident_service),
+) -> IncidentResponse:
+    try:
+        return incident_service.analyze(incident_id)
+    except IncidentNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found",
+        ) from error
+    except IncidentAnalysisConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error

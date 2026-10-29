@@ -21,7 +21,7 @@ SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
 def create_tables(database_engine=engine) -> None:
-    from app.orm_models import IncidentORM
+    from app.orm_models import IncidentORM, TriageResultORM
 
     Base.metadata.create_all(bind=database_engine)
 
