@@ -1,0 +1,133 @@
+[
+  {
+    "id": "performance-complete",
+    "input": {
+      "title": "El panel está lento",
+      "description": "El rendimiento del panel se degrada al abrirlo.",
+      "steps_to_reproduce": "Abrir el panel principal.",
+      "environment": "Producción",
+      "components": ["frontend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "configuration-incomplete",
+    "input": {
+      "title": "Problema de configuración",
+      "description": "La configuración del servicio no se aplica.",
+      "environment": "Staging",
+      "components": ["backend"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": ["steps_to_reproduce"],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "documentation-complete",
+    "input": {
+      "title": "Actualizar la documentación",
+      "description": "La documentación del endpoint está desactualizada.",
+      "steps_to_reproduce": "Consultar la guía de API.",
+      "environment": "N/A",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "feature-without-steps",
+    "input": {
+      "title": "Solicitar nueva funcionalidad",
+      "description": "Se necesita una mejora para exportar informes.",
+      "environment": "Producción",
+      "components": ["reports"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": ["steps_to_reproduce"],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "bug-complete",
+    "input": {
+      "title": "Error al guardar cambios",
+      "description": "El formulario no guarda los cambios introducidos.",
+      "steps_to_reproduce": "Editar un campo y pulsar Guardar.",
+      "environment": "Producción",
+      "components": ["frontend", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "bug-incomplete",
+    "input": {
+      "title": "La aplicación falla",
+      "description": "Se produce un error inesperado.",
+      "components": ["backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": ["steps_to_reproduce", "environment"],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "feature-complete",
+    "input": {
+      "title": "Mejora de búsqueda",
+      "description": "Se solicita una funcionalidad de búsqueda avanzada.",
+      "steps_to_reproduce": "Abrir el buscador.",
+      "environment": "Producción",
+      "components": ["frontend"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "performance-missing-environment",
+    "input": {
+      "title": "Consulta lenta",
+      "description": "La consulta tiene un rendimiento muy lento.",
+      "steps_to_reproduce": "Ejecutar la consulta desde el panel.",
+      "components": ["backend", "database"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": ["environment"],
+      "confidence": "medium"
+    }
+  }
+]

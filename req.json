@@ -1,0 +1,2 @@
+{"model":"qwen3.5:4b","stream":false,"think":false,"format":"json","options":{"temperature":0},
+ "messages":[{"role":"user","content":"Clasifica esta incidencia en JSON con los campos category y severity: Al pulsar Guardar en el formulario de contacto no ocurre nada."}]}

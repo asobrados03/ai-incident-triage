@@ -2,12 +2,17 @@ from collections.abc import Iterator
 from uuid import uuid4
 
 import pytest
+from fastapi import Depends
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.analyzer import AnalyzerProviderUnavailableError, AnalyzerTimeoutError
 from app.database import Base, get_db_session
 from app.main import app
+from app.main import get_incident_service
+from app.repository import IncidentRepository
+from app.service import IncidentService
 
 
 @pytest.fixture
@@ -212,3 +217,61 @@ def test_analyze_already_analyzed_incident_returns_409(client: TestClient) -> No
     assert first.status_code == 200
     assert second.status_code == 409
     assert "analyzed" in second.json()["detail"]
+
+
+def test_analyzer_provider_error_returns_502_and_marks_failed(
+    client: TestClient,
+) -> None:
+    class UnavailableAnalyzer:
+        def analyze(self, incident):
+            raise AnalyzerProviderUnavailableError("Ollama unavailable")
+
+    def get_failing_service(
+        session: Session = Depends(get_db_session),
+    ) -> IncidentService:
+        return IncidentService(IncidentRepository(session), UnavailableAnalyzer())
+
+    app.dependency_overrides[get_incident_service] = get_failing_service
+
+    created = client.post(
+        "/incidents",
+        json={"title": "Fallo", "description": "No funciona."},
+    )
+    incident_id = created.json()["id"]
+
+    response = client.post(f"/incidents/{incident_id}/analysis")
+    fetched = client.get(f"/incidents/{incident_id}")
+
+    assert response.status_code == 502
+    assert response.json()["detail"] == "Ollama unavailable"
+    assert fetched.status_code == 200
+    assert fetched.json()["status"] == "analysis_failed"
+
+
+def test_analyzer_timeout_returns_504_and_marks_failed(
+    client: TestClient,
+) -> None:
+    class TimeoutAnalyzer:
+        def analyze(self, incident):
+            raise AnalyzerTimeoutError("Ollama timed out")
+
+    def get_timeout_service(
+        session: Session = Depends(get_db_session),
+    ) -> IncidentService:
+        return IncidentService(IncidentRepository(session), TimeoutAnalyzer())
+
+    app.dependency_overrides[get_incident_service] = get_timeout_service
+
+    created = client.post(
+        "/incidents",
+        json={"title": "Fallo", "description": "No funciona."},
+    )
+    incident_id = created.json()["id"]
+
+    response = client.post(f"/incidents/{incident_id}/analysis")
+    fetched = client.get(f"/incidents/{incident_id}")
+
+    assert response.status_code == 504
+    assert response.json()["detail"] == "Analyzer provider timed out"
+    assert fetched.status_code == 200
+    assert fetched.json()["status"] == "analysis_failed"

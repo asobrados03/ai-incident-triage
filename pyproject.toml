@@ -9,6 +9,7 @@ description = "API base para la gestión de incidencias y su futuro triaje intel
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1.0",
+    "httpx>=0.27,<1.0",
     "pydantic-settings>=2.6,<3.0",
     "sqlalchemy>=2.0,<3.0",
     "uvicorn[standard]>=0.32,<1.0",
@@ -16,7 +17,6 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "httpx>=0.27,<1.0",
     "pytest>=8.0,<9.0",
 ]
 

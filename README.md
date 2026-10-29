@@ -41,3 +41,59 @@ El análisis actual usa `FakeAnalyzer`, un adaptador determinista y explicable p
 resultado en `triage_results` y cambia el estado de la incidencia de `created` a `analyzing` y finalmente
 a `analyzed`. Si ya existe un análisis, el endpoint devuelve `409 Conflict`. La integración con un LLM o proveedor
 externo se añadirá en otra fase. El archivo local `incidents.db` se ignora en Git.
+
+## Analizador LLM local opcional
+
+El proyecto puede usar Ollama como runtime local con el modelo `qwen3.5:4b`. `FakeAnalyzer` sigue siendo el valor
+por defecto y es el backend usado por los tests; pytest no realiza llamadas reales a Ollama.
+
+Instala Ollama en Windows y descarga el modelo:
+
+```powershell
+irm https://ollama.com/install.ps1 | iex
+ollama serve
+ollama pull qwen3.5:4b
+ollama list
+Invoke-RestMethod http://127.0.0.1:11434/api/tags
+```
+
+Configura el backend antes de arrancar la API:
+
+```powershell
+$env:ANALYZER_BACKEND = "ollama"
+$env:OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+$env:OLLAMA_MODEL = "qwen3.5:4b"
+$env:OLLAMA_TIMEOUT_SECONDS = "60"
+uvicorn app.main:app --reload
+```
+
+El adaptador solicita una respuesta JSON y la valida estrictamente contra `TriageResult`. Si Ollama no está
+disponible o devuelve una respuesta inválida, la API responde `502` y marca el análisis como `analysis_failed`;
+si supera el timeout, responde `504`. La aplicación no inicia Ollama ni descarga modelos automáticamente.
+
+## Evaluación offline
+
+El dataset versionado `eval/data/incidents.json` contiene ocho incidencias de referencia con etiquetas esperadas.
+La evaluación compara únicamente campos estructurados: `category`, `severity` y `priority` requieren igualdad exacta;
+`missing_information` requiere igualdad exacta de la lista; y `confidence` se compara como indicador de incertidumbre.
+También informa respuestas válidas, errores y tasa de errores. No puntúa `summary` o `justification` por similitud de
+texto libre, por lo que el resultado no representa una evaluación completa de calidad lingüística.
+
+Ejecuta el baseline determinista sin Ollama:
+
+```powershell
+python -m app.evaluation
+```
+
+El backend fake es el predeterminado y está diseñado como baseline estable de plumbing, no como medida de calidad
+del LLM. Para evaluar explícitamente con Ollama, con el servidor y modelo ya disponibles:
+
+```powershell
+$env:ANALYZER_BACKEND = "ollama"
+$env:OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+$env:OLLAMA_MODEL = "qwen3.5:4b"
+python -m app.evaluation --backend ollama
+```
+
+Esta ejecución puede producir resultados variables y no se mezcla con pytest. Los tests usan `FakeAnalyzer` o
+analizadores locales controlados y nunca hacen llamadas reales a Ollama.

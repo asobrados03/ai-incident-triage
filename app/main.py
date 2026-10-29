@@ -6,7 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import create_tables, engine, get_db_session
-from app.analyzer import FakeAnalyzer
+from app.analyzer import (
+    AnalyzerConfigurationError,
+    AnalyzerProviderUnavailableError,
+    AnalyzerResponseError,
+    AnalyzerTimeoutError,
+    FakeAnalyzer,
+    OllamaAnalyzer,
+)
 from app.repository import IncidentRepository
 from app.schemas import IncidentCreate, IncidentResponse
 from app.service import (
@@ -34,7 +41,15 @@ app = FastAPI(
 def get_incident_service(
     session: Session = Depends(get_db_session),
 ) -> IncidentService:
-    return IncidentService(IncidentRepository(session), FakeAnalyzer())
+    if settings.analyzer_backend == "fake":
+        analyzer = FakeAnalyzer()
+    elif settings.analyzer_backend == "ollama":
+        analyzer = OllamaAnalyzer()
+    else:
+        raise AnalyzerConfigurationError(
+            f"Unsupported analyzer backend: {settings.analyzer_backend}",
+        )
+    return IncidentService(IncidentRepository(session), analyzer)
 
 
 @app.get("/health")
@@ -86,5 +101,19 @@ def analyze_incident(
     except IncidentAnalysisConflictError as error:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except AnalyzerTimeoutError as error:
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Analyzer provider timed out",
+        ) from error
+    except (
+        AnalyzerProviderUnavailableError,
+        AnalyzerResponseError,
+        AnalyzerConfigurationError,
+    ) as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(error),
         ) from error
