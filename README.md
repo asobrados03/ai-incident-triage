@@ -1,68 +1,149 @@
 # Sistema inteligente de triaje de incidencias
 
-API base para registrar incidencias y consultarlas antes de incorporar el análisis automático.
+API pequeña para registrar incidencias, generar una propuesta de triaje y permitir que una persona la acepte o la
+corrija. El proyecto está pensado como MVP demostrable para portfolio y entrevista: mantiene separadas la entrada,
+el análisis, la persistencia y la revisión humana, sin añadir todavía UI, autenticación, RAG ni agentes.
 
-## Instalación
+## Qué resuelve
 
-Se requiere Python 3.11 o superior:
+1. Recibe una incidencia con contexto técnico.
+2. La persiste en SQLite y la deja en estado `created`.
+3. Ejecuta un analizador explícito con `POST /incidents/{id}/analysis`.
+4. Guarda la propuesta estructurada (`category`, `severity`, `priority`, faltantes y confianza).
+5. Permite aceptar o corregir la propuesta con `PATCH /incidents/{id}/triage`.
+6. Conserva la propuesta original y almacena los valores finales revisados.
+
+Estados principales: `created → analyzing → analyzed → reviewed`. Si el análisis falla, el estado es
+`analysis_failed`.
+
+## Arquitectura
+
+```mermaid
+flowchart LR
+    Client[Cliente HTTP / demo PowerShell] --> API[FastAPI routers]
+    API --> Service[IncidentService]
+    Service --> Repo[IncidentRepository]
+    Repo --> SQLite[(SQLite incidents.db)]
+    Service --> Analyzer[IncidentAnalyzer]
+    Analyzer --> Fake[FakeAnalyzer]
+    Analyzer --> Ollama[OllamaAnalyzer]
+    Ollama --> Runtime[(Ollama local\nqwen3.5:4b)]
+    API --> Review[PATCH revisión humana]
+    Review --> Service
+    Repo --> Triage[(triage_results)]
+    Repo --> Reviews[(triage_reviews)]
+```
+
+Capas:
+
+- `app/main.py`: rutas HTTP, dependencias y traducción de errores a códigos HTTP.
+- `app/service.py`: transiciones de estado y casos de uso.
+- `app/repository.py`: consultas y persistencia SQLAlchemy.
+- `app/orm_models.py`: tablas `incidents`, `triage_results` y `triage_reviews`.
+- `app/analyzer.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
+- `app/schemas.py`: contratos Pydantic públicos.
+- `app/evaluation.py`: evaluación offline independiente de FastAPI.
+
+## Instalación y ejecución local
+
+Requiere Python 3.11 o superior:
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[test]"
-```
-
-La configuración se realiza mediante variables de entorno:
-
-- `APP_NAME`: nombre de la aplicación.
-- `DATABASE_URL`: URL SQLAlchemy de la base de datos. Por defecto apunta de forma absoluta a `incidents.db` en la raíz del proyecto, independientemente del directorio desde el que se arranque Uvicorn.
-
-## Ejecución
-
-```powershell
 uvicorn app.main:app --reload
 ```
 
-La API estará disponible en `http://127.0.0.1:8000` y la documentación interactiva en `/docs`.
+La API queda en `http://127.0.0.1:8000`; OpenAPI está disponible en `/docs`. SQLite usa por defecto una ruta
+absoluta en la raíz del proyecto para no depender del directorio desde el que se arranque Uvicorn.
 
-## Tests
+## Configuración
 
-```powershell
-pytest
+| Variable | Default | Uso |
+|---|---|---|
+| `APP_NAME` | nombre del proyecto | Título de FastAPI. |
+| `DATABASE_URL` | SQLite local absoluta | URL SQLAlchemy; no se crean migraciones en este MVP. |
+| `ANALYZER_BACKEND` | `fake` | `fake` para desarrollo/tests o `ollama` explícito. |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Runtime local de Ollama. |
+| `OLLAMA_MODEL` | `qwen3.5:4b` | Modelo Ollama. |
+| `OLLAMA_TIMEOUT_SECONDS` | `180` | Timeout finito del adaptador. |
+
+El arranque valida backend, URL HTTP(S), modelo no vacío y timeout positivo. `GET /health` no llama a Ollama ni
+expone URL, modelo o secretos:
+
+```json
+{"status":"ok","analyzer_backend":"fake"}
 ```
 
-Las incidencias se almacenan en SQLite. Se crean en estado `created` y el análisis se solicita explícitamente:
+## API y ejemplos
+
+### Crear incidencia — `POST /incidents`
 
 ```powershell
-curl -X POST http://127.0.0.1:8000/incidents/{incident_id}/analysis
+$body = '{"title":"El panel no carga","description":"Devuelve un error al abrirlo.","steps_to_reproduce":"Abrir el panel.","environment":"local","components":["frontend"]}'
+curl.exe -i -X POST http://127.0.0.1:8000/incidents `
+  -H "Content-Type: application/json" --data-raw $body
 ```
 
-El análisis actual usa `FakeAnalyzer`, un adaptador determinista y explicable para desarrollo y tests. Persiste el
-resultado en `triage_results` y cambia el estado de la incidencia de `created` a `analyzing` y finalmente
-a `analyzed`. Si ya existe un análisis, el endpoint devuelve `409 Conflict`. La integración con un LLM o proveedor
-externo se añadirá en otra fase. El archivo local `incidents.db` se ignora en Git.
+Respuesta `201 Created`:
 
-## Revisión humana
+```json
+{
+  "title": "El panel no carga",
+  "description": "Devuelve un error al abrirlo.",
+  "steps_to_reproduce": "Abrir el panel.",
+  "expected_behavior": null,
+  "actual_behavior": null,
+  "environment": "local",
+  "components": ["frontend"],
+  "id": "00000000-0000-0000-0000-000000000000",
+  "status": "created",
+  "created_at": "2026-10-29T12:00:00",
+  "triage": null
+}
+```
 
-Después de analizar una incidencia, se puede aceptar la propuesta o corregir parcialmente sus campos:
+### Consultar — `GET /incidents/{incident_id}`
 
 ```powershell
-curl.exe -X PATCH http://127.0.0.1:8000/incidents/{incident_id}/triage `
+curl.exe -i http://127.0.0.1:8000/incidents/{incident_id}
+```
+
+Devuelve `200` si existe y `404` con `{"detail":"Incident not found"}` si no existe.
+
+### Analizar — `POST /incidents/{incident_id}/analysis`
+
+```powershell
+curl.exe -i -X POST http://127.0.0.1:8000/incidents/{incident_id}/analysis
+```
+
+La respuesta `200` contiene `status: "analyzed"` y `triage` con:
+`category` (`bug`, `feature`, `documentation`, `configuration`, `performance`), `severity`
+(`low`, `medium`, `high`, `critical`), `priority` (`low`, `medium`, `high`, `urgent`), `summary`,
+`affected_components`, `missing_information`, `justification` y `confidence` (`low`, `medium`, `high`).
+Un segundo análisis devuelve `409`.
+
+### Revisar — `PATCH /incidents/{incident_id}/triage`
+
+```powershell
+curl.exe -i -X PATCH http://127.0.0.1:8000/incidents/{incident_id}/triage `
   -H "Content-Type: application/json" `
   --data-raw '{"severity":"critical","priority":"urgent","review_comment":"Impacto confirmado"}'
 ```
 
-La respuesta conserva los campos actuales de `triage` como propuesta original de IA y añade `triage.review.final`
-con los valores finales revisados, además de `reviewed`, `source`, `review_comment` y `reviewed_at`. El estado pasa
-de `analyzed` a `reviewed`. Un comentario sin correcciones acepta la propuesta sin cambios; una petición vacía,
-una incidencia sin análisis o una revisión duplicada se rechazan. En los dos últimos casos se devuelve `409`.
+La respuesta `200` cambia el estado a `reviewed`. `triage` sigue siendo la propuesta original y
+`triage.review.final` contiene los valores finales, con `reviewed: true`, `source: "human"`, comentario y timestamp.
+Un comentario solo acepta la propuesta sin cambios. Una petición vacía, una incidencia sin análisis o una revisión
+duplicada devuelve `422`/`409` según el caso.
 
-## Analizador LLM local opcional
+Límites relevantes: título 1–200 caracteres, descripción 1–5000, comentarios 2000, componentes y listas de triaje
+máximo 20 elementos. Los campos desconocidos se rechazan.
 
-El proyecto puede usar Ollama como runtime local con el modelo `qwen3.5:4b`. `FakeAnalyzer` sigue siendo el valor
-por defecto y es el backend usado por los tests; pytest no realiza llamadas reales a Ollama.
+## FakeAnalyzer y Ollama
 
-Instala Ollama en Windows y descarga el modelo:
+`FakeAnalyzer` es el backend por defecto: determinista, local y útil para comprobar plumbing y transiciones, no para
+medir calidad semántica de un LLM. Ollama es opcional:
 
 ```powershell
 irm https://ollama.com/install.ps1 | iex
@@ -70,92 +151,110 @@ ollama serve
 ollama pull qwen3.5:4b
 ollama list
 Invoke-RestMethod http://127.0.0.1:11434/api/tags
-```
-
-Configura el backend antes de arrancar la API:
-
-```powershell
 $env:ANALYZER_BACKEND = "ollama"
-$env:OLLAMA_BASE_URL = "http://127.0.0.1:11434"
-$env:OLLAMA_MODEL = "qwen3.5:4b"
-$env:OLLAMA_TIMEOUT_SECONDS = "180"
 uvicorn app.main:app --reload
 ```
 
-El adaptador solicita una respuesta JSON y la valida estrictamente contra `TriageResult`. Si Ollama no está
-disponible o devuelve una respuesta inválida, la API responde `502` y marca el análisis como `analysis_failed`;
-si supera el timeout, responde `504`. La aplicación no inicia Ollama ni descarga modelos automáticamente.
-
-`GET /health` devuelve únicamente el estado de la aplicación y el backend configurado, sin exponer la URL de
-Ollama, el nombre del modelo ni credenciales:
-
-```json
-{"status": "ok", "analyzer_backend": "fake"}
-```
-
-En desarrollo se recomienda mantener `ANALYZER_BACKEND=fake`. En producción, valida explícitamente las variables
-`ANALYZER_BACKEND`, `OLLAMA_BASE_URL`, `OLLAMA_MODEL` y `OLLAMA_TIMEOUT_SECONDS` antes del arranque; una configuración
-inválida impide iniciar la aplicación. No incluyas credenciales en URLs, logs o respuestas. El uso de Ollama implica
-coste de CPU/GPU, memoria y latencia local; establece un timeout finito y limita el tamaño de las entradas.
+`OllamaAnalyzer` solicita JSON estructurado con temperatura cero, `think: false` y `num_predict: 512`; valida la
+respuesta contra `TriageResult`. Proveedor no disponible o respuesta inválida producen `502`; timeout produce `504`,
+sin fallback silencioso ni trazas en la respuesta. Los tests nunca llaman a Ollama.
 
 ## Evaluación offline
 
-El dataset versionado `eval/data/incidents.json` contiene ocho incidencias de referencia con etiquetas esperadas.
-La evaluación compara únicamente campos estructurados: `category`, `severity` y `priority` requieren igualdad exacta;
-`missing_information` requiere igualdad exacta de la lista; y `confidence` se compara como indicador de incertidumbre.
-También informa respuestas válidas, errores, tasa de errores y latencia total/media por caso. No puntúa `summary` o `justification` por similitud de
-texto libre, por lo que el resultado no representa una evaluación completa de calidad lingüística.
-
-Ejecuta el baseline determinista sin Ollama:
+`eval/data/incidents.json` contiene 8 incidencias etiquetadas. Ejecuta:
 
 ```powershell
 python -m app.evaluation
 ```
 
-El backend fake es el predeterminado y está diseñado como baseline estable de plumbing, no como medida de calidad
-del LLM. Para evaluar explícitamente con Ollama, con el servidor y modelo ya disponibles:
+La salida fake es una referencia reproducible, pero no se espera exactitud perfecta: el dataset representa etiquetas
+manuales de negocio y `FakeAnalyzer` solo implementa reglas simples de baseline. Una ejecución reciente produce:
+
+```json
+{
+  "total": 8,
+  "valid_responses": 8,
+  "category_accuracy": 0.75,
+  "severity_accuracy": 0.375,
+  "priority_accuracy": 0.0,
+  "missing_information_accuracy": 0.875,
+  "confidence_accuracy": 0.875,
+  "errors": 0,
+  "error_rate": 0.0,
+  "latency_ms_total": 0.54,
+  "latency_ms_average": 0.07
+}
+```
+
+Un acierto exige igualdad exacta en enums y en la lista de `missing_information`; `summary` y `justification` no se
+puntúan por similitud de texto libre. La ausencia o presencia de cada concepto de `missing_information` se compara
+como lista exacta; en el caso 8 se esperan literalmente latencia observada, porcentaje de peticiones afectadas,
+momento en que ocurre, identificador de correlación y logs o métricas disponibles. La métrica fake es un baseline de
+reglas/plumbing, no una evaluación de calidad del LLM, por lo que sus fallos frente a estas etiquetas son conocidos
+y deliberados. Para Ollama, con el runtime ya disponible:
 
 ```powershell
-$env:ANALYZER_BACKEND = "ollama"
-$env:OLLAMA_BASE_URL = "http://127.0.0.1:11434"
-$env:OLLAMA_MODEL = "qwen3.5:4b"
 python -m app.evaluation --backend ollama
 ```
 
-Esta ejecución puede producir resultados variables y no se mezcla con pytest. Los tests usan `FakeAnalyzer` o
-analizadores locales controlados y nunca hacen llamadas reales a Ollama.
+## Demo reproducible
 
-## Auditoría de fases
+Con la API arrancada en otra terminal:
 
-| Fase | Estado | Evidencia |
-|---|---|---|
-| 5 — Evaluación | Completa | Dataset de 8 casos, exactitud estructurada, respuestas inválidas/errores, `missing_information`, confianza y latencia total/media. |
-| 6 — Robustez/API | Completa | Revisión humana, idempotencia/conflictos, validación de configuración, límites, errores HTTP, logs JSON y capas separadas. |
-| 7 — Docker/CI | Completa | `Dockerfile`, `.dockerignore` y GitHub Actions con pytest y validación de Dockerfile. |
+```powershell
+.\scripts\demo.ps1
+```
 
-La evaluación no puntúa `summary` ni `justification` por similitud textual. El `FakeAnalyzer` es un baseline
-determinista de plumbing; sus métricas no representan la calidad de un LLM. Ollama puede variar por modelo,
-hardware y temperatura. Los logs de análisis son JSON y contienen solo IDs, estados, duración y tipos de error;
-no registran descripciones, prompts, respuestas ni secretos.
+El script ejecuta health → create → analysis → GET → review, no contiene secretos y solo usa `curl.exe` y herramientas
+incluidas en PowerShell. También acepta una URL alternativa:
+
+```powershell
+.\scripts\demo.ps1 -BaseUrl "http://localhost:8000"
+```
 
 ## Docker y CI
 
-La imagen usa SQLite por defecto y no incluye `incidents.db`, tests, credenciales ni artefactos locales:
-
 ```powershell
 docker build -t triaje-api .
-docker run --rm -p 8000:8000 -v "${PWD}/data:/data" -e DATABASE_URL=sqlite:////data/incidents.db triaje-api
+docker run --rm -p 8000:8000 -v "${PWD}/data:/data" `
+  -e DATABASE_URL=sqlite:////data/incidents.db triaje-api
 ```
 
-Para persistir SQLite en Windows, monta un directorio y usa una URL absoluta dentro del contenedor. `DATABASE_URL`
-puede apuntar a otro motor compatible con SQLAlchemy, pero PostgreSQL no se incorpora todavía porque no aporta valor
-necesario para este incremento. CI instala el proyecto, ejecuta `python -m pytest -q` y valida el Dockerfile.
+La imagen no incluye `incidents.db`, tests, `.venv`, artefactos locales ni secretos. El contenedor no inicia Ollama:
+debe ejecutarse aparte. GitHub Actions en `.github/workflows/ci.yml` instala el proyecto, ejecuta `python -m pytest -q`
+y valida el Dockerfile. PostgreSQL no se incorpora todavía: SQLite cubre el MVP local y evita añadir operación,
+driver y migraciones antes de necesitar despliegue multiinstancia.
 
-## Fallos conocidos y límites
+## Decisiones, costes y seguridad
 
-- SQLite es adecuado para desarrollo y una ejecución local sencilla, pero no ofrece la concurrencia ni operación
-  multiinstancia de PostgreSQL.
-- La evaluación fake mide estabilidad del plumbing y reglas deterministas, no la calidad semántica del modelo.
-- Ollama puede devolver respuestas inválidas, agotar el timeout o variar por hardware/modelo; esos casos se exponen como
-  errores HTTP y no activan fallback silencioso.
-- El contenedor no inicia Ollama: debe ejecutarse aparte y configurarse mediante variables de entorno.
+- **SQLite frente a PostgreSQL:** SQLite reduce fricción para el MVP; PostgreSQL será razonable cuando haya
+  concurrencia, despliegue multiinstancia o necesidad de operaciones gestionadas.
+- **Ollama frente a carga directa Python:** Ollama aísla runtime/modelo, hardware y ciclo de vida; cargar
+  `transformers`/`torch` dentro de FastAPI añadiría peso y complejidad innecesarios.
+- **FakeAnalyzer:** permite tests rápidos y reproducibles sin descargar modelos.
+- **Sin RAG/agentes:** no son necesarios para clasificar el contrato actual y aumentarían superficie y coste.
+- **Validación estructurada:** Pydantic rechaza respuestas incompletas; se evita puntuar o persistir texto no validado.
+- **Revisión humana:** la tabla `triage_reviews` conserva el original y permite medir correcciones futuras.
+- **Coste:** FakeAnalyzer + SQLite no requieren servicios externos; Ollama consume CPU/GPU, memoria, almacenamiento y
+  tiempo local; se evitan costes de API externa en el MVP. El coste real depende del hardware y del modelo.
+- **Seguridad:** no hay credenciales en el código; health y errores no exponen secretos; valida límites y configuración;
+  usa una red local controlada para Ollama y no envíes datos sensibles sin una política de privacidad.
+
+## Cómo explicarlo en entrevista
+
+> “Separé el caso de uso de análisis del proveedor mediante `IncidentAnalyzer`: el fake da un baseline reproducible
+> y Ollama es un adaptador opcional. La propuesta se persiste separada de la revisión humana, así puedo auditar qué
+> sugirió el sistema y qué cambió la persona. Medí exactitud estructurada, faltantes, errores y latencia en un dataset
+> pequeño; sé que el fake no mide calidad de LLM. Elegí SQLite para reducir el coste operativo del MVP, añadí límites,
+> errores explícitos, logs JSON sin contenido sensible y CI/Docker para que la demo sea reproducible.” 
+
+## Limitaciones y mejoras futuras
+
+- Dataset pequeño y etiquetado manualmente; ampliar casos y separar conjuntos de desarrollo/evaluación.
+- El FakeAnalyzer no reconoce todavía señales como severidad global, impacto por porcentaje, ventanas temporales,
+  errores de correo, configuración de PostgreSQL o síntomas de latencia descritos con vocabulario no contemplado;
+  no se ajustó para forzar una puntuación artificialmente perfecta.
+- Añadir percentiles de latencia y métricas por clase cuando exista más volumen.
+- Incorporar PostgreSQL y migraciones al requerir despliegue multiinstancia.
+- Añadir autenticación, autorización, retención y auditoría de usuarios antes de producción.
+- Añadir UI y revisión humana enriquecida después de estabilizar el contrato API.

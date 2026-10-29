@@ -11,9 +11,16 @@ def test_load_reference_dataset_has_eight_cases() -> None:
     assert len(cases) == 8
     assert all(case.input.title for case in cases)
     assert all("category" in case.expected for case in cases)
+    assert cases[-1].expected["missing_information"] == [
+        "latencia observada",
+        "porcentaje de peticiones afectadas",
+        "momento en que ocurre",
+        "identificador de correlación",
+        "logs o métricas disponibles",
+    ]
 
 
-def test_fake_evaluation_is_reproducible() -> None:
+def test_fake_evaluation_is_reproducible_without_assuming_perfect_accuracy() -> None:
     metrics = evaluate(FakeAnalyzer(), load_dataset())
 
     assert metrics.total == 8
@@ -22,11 +29,11 @@ def test_fake_evaluation_is_reproducible() -> None:
     assert metrics.error_rate == 0
     assert metrics.latency_ms_total >= 0
     assert metrics.latency_ms_average >= 0
-    assert metrics.category_accuracy == 1
-    assert metrics.severity_accuracy == 1
-    assert metrics.priority_accuracy == 1
-    assert metrics.missing_information_accuracy == 1
-    assert metrics.confidence_accuracy == 1
+    assert 0 <= metrics.category_accuracy < 1
+    assert 0 <= metrics.severity_accuracy < 1
+    assert 0 <= metrics.priority_accuracy < 1
+    assert 0 <= metrics.missing_information_accuracy < 1
+    assert 0 <= metrics.confidence_accuracy <= 1
 
 
 def test_evaluate_empty_dataset_returns_zero_metrics() -> None:

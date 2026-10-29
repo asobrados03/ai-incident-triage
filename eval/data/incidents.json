@@ -1,48 +1,49 @@
 [
   {
-    "id": "performance-complete",
+    "id": "profile-save-500",
     "input": {
-      "title": "El panel está lento",
-      "description": "El rendimiento del panel se degrada al abrirlo.",
-      "steps_to_reproduce": "Abrir el panel principal.",
+      "title": "Error 500 al guardar el perfil",
+      "description": "Al guardar el perfil se devuelve un error HTTP 500 para todos los usuarios.",
+      "steps_to_reproduce": "Editar el perfil y pulsar Guardar.",
       "environment": "Producción",
-      "components": ["frontend"]
+      "components": ["backend", "profile"]
     },
     "expected": {
-      "category": "performance",
+      "category": "bug",
       "severity": "high",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "application-crash-large-dataset",
+    "input": {
+      "title": "Cierre de la aplicación con más de 10.000 registros",
+      "description": "La aplicación se cierra al trabajar con más de 10.000 registros.",
+      "steps_to_reproduce": "Cargar más de 10.000 registros y abrir la vista.",
+      "environment": "Producción",
+      "components": ["frontend", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
       "priority": "high",
       "missing_information": [],
       "confidence": "high"
     }
   },
   {
-    "id": "configuration-incomplete",
+    "id": "csv-export-request",
     "input": {
-      "title": "Problema de configuración",
-      "description": "La configuración del servicio no se aplica.",
-      "environment": "Staging",
-      "components": ["backend"]
+      "title": "Solicitud de exportación CSV",
+      "description": "Se solicita poder exportar los resultados en formato CSV.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["reports"]
     },
     "expected": {
-      "category": "configuration",
-      "severity": "medium",
-      "priority": "medium",
-      "missing_information": ["steps_to_reproduce"],
-      "confidence": "medium"
-    }
-  },
-  {
-    "id": "documentation-complete",
-    "input": {
-      "title": "Actualizar la documentación",
-      "description": "La documentación del endpoint está desactualizada.",
-      "steps_to_reproduce": "Consultar la guía de API.",
-      "environment": "N/A",
-      "components": ["docs"]
-    },
-    "expected": {
-      "category": "documentation",
+      "category": "feature",
       "severity": "low",
       "priority": "low",
       "missing_information": [],
@@ -50,64 +51,16 @@
     }
   },
   {
-    "id": "feature-without-steps",
+    "id": "documentation-python-version",
     "input": {
-      "title": "Solicitar nueva funcionalidad",
-      "description": "Se necesita una mejora para exportar informes.",
-      "environment": "Producción",
-      "components": ["reports"]
+      "title": "Documentación con versión de Python incorrecta",
+      "description": "La documentación exige Python 3.9 cuando el proyecto necesita Python 3.11.",
+      "steps_to_reproduce": "Seguir las instrucciones de instalación de la documentación.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
     },
     "expected": {
-      "category": "feature",
-      "severity": "low",
-      "priority": "medium",
-      "missing_information": ["steps_to_reproduce"],
-      "confidence": "medium"
-    }
-  },
-  {
-    "id": "bug-complete",
-    "input": {
-      "title": "Error al guardar cambios",
-      "description": "El formulario no guarda los cambios introducidos.",
-      "steps_to_reproduce": "Editar un campo y pulsar Guardar.",
-      "environment": "Producción",
-      "components": ["frontend", "backend"]
-    },
-    "expected": {
-      "category": "bug",
-      "severity": "medium",
-      "priority": "medium",
-      "missing_information": [],
-      "confidence": "high"
-    }
-  },
-  {
-    "id": "bug-incomplete",
-    "input": {
-      "title": "La aplicación falla",
-      "description": "Se produce un error inesperado.",
-      "components": ["backend"]
-    },
-    "expected": {
-      "category": "bug",
-      "severity": "medium",
-      "priority": "medium",
-      "missing_information": ["steps_to_reproduce", "environment"],
-      "confidence": "medium"
-    }
-  },
-  {
-    "id": "feature-complete",
-    "input": {
-      "title": "Mejora de búsqueda",
-      "description": "Se solicita una funcionalidad de búsqueda avanzada.",
-      "steps_to_reproduce": "Abrir el buscador.",
-      "environment": "Producción",
-      "components": ["frontend"]
-    },
-    "expected": {
-      "category": "feature",
+      "category": "documentation",
       "severity": "low",
       "priority": "medium",
       "missing_information": [],
@@ -115,18 +68,76 @@
     }
   },
   {
-    "id": "performance-missing-environment",
+    "id": "postgresql-connection-error",
     "input": {
-      "title": "Consulta lenta",
-      "description": "La consulta tiene un rendimiento muy lento.",
-      "steps_to_reproduce": "Ejecutar la consulta desde el panel.",
+      "title": "Error de conexión a PostgreSQL",
+      "description": "La aplicación no conecta a PostgreSQL tras modificar DATABASE_URL.",
+      "steps_to_reproduce": "Modificar DATABASE_URL y arrancar la aplicación.",
+      "environment": "Staging",
+      "components": ["backend", "database"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "slow-searches-large-dataset",
+    "input": {
+      "title": "Búsquedas lentas con muchos registros",
+      "description": "Las búsquedas tardan entre 8 y 12 segundos con más de 50.000 registros.",
+      "steps_to_reproduce": "Buscar un registro en el dataset grande.",
+      "environment": "Producción",
       "components": ["backend", "database"]
     },
     "expected": {
       "category": "performance",
       "severity": "high",
       "priority": "high",
-      "missing_information": ["environment"],
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "missing-confirmation-emails",
+    "input": {
+      "title": "Correos de confirmación no recibidos",
+      "description": "Los usuarios no reciben los correos de confirmación.",
+      "steps_to_reproduce": "Crear una incidencia y comprobar el buzón.",
+      "environment": "Producción",
+      "components": ["notifications"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "occasional-incident-creation-latency",
+    "input": {
+      "title": "Lentitud ocasional al crear una incidencia",
+      "description": "Crear una incidencia a veces es lento, pero no hay métricas ni trazas para distinguir si el problema está en la API, la base de datos o el proveedor de IA.",
+      "steps_to_reproduce": "Crear incidencias durante los periodos en que se observa lentitud.",
+      "environment": "Producción",
+      "components": ["api", "database", "ai-provider"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [
+        "latencia observada",
+        "porcentaje de peticiones afectadas",
+        "momento en que ocurre",
+        "identificador de correlación",
+        "logs o métricas disponibles"
+      ],
       "confidence": "medium"
     }
   }
