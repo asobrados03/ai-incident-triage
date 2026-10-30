@@ -107,6 +107,57 @@ class EvaluationMetrics:
         return asdict(self)
 
 
+@dataclass(frozen=True)
+class BackendComparison:
+    baseline: str
+    candidate: str
+    baseline_metrics: EvaluationMetrics
+    candidate_metrics: EvaluationMetrics
+    improved: tuple[str, ...]
+    worsened: tuple[str, ...]
+    changed: tuple[str, ...]
+    unchanged: tuple[str, ...]
+
+    def deltas(self) -> dict[str, float]:
+        fields = (
+            "category_accuracy",
+            "severity_accuracy",
+            "priority_accuracy",
+            "missing_information_accuracy",
+            "confidence_accuracy",
+            "category_macro_f1",
+            "severity_macro_f1",
+            "priority_macro_f1",
+            "latency_ms_p50",
+            "latency_ms_p95",
+            "error_rate",
+        )
+        return {
+            field: getattr(self.candidate_metrics, field)
+            - getattr(self.baseline_metrics, field)
+            for field in fields
+        }
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "baseline": {
+                "backend": self.baseline,
+                "metrics": self.baseline_metrics.as_dict(),
+            },
+            "candidate": {
+                "backend": self.candidate,
+                "metrics": self.candidate_metrics.as_dict(),
+            },
+            "deltas": self.deltas(),
+            "cases": {
+                "improved": list(self.improved),
+                "worsened": list(self.worsened),
+                "changed": list(self.changed),
+                "unchanged": list(self.unchanged),
+            },
+        }
+
+
 def load_dataset(path: Path = DEFAULT_DATASET) -> list[EvaluationCase]:
     with path.open(encoding="utf-8") as file:
         raw_cases = json.load(file)
@@ -222,6 +273,54 @@ def metrics_from_outcomes(outcomes: list[CaseOutcome]) -> EvaluationMetrics:
         confidence_calibration=_confidence_calibration(valid_outcomes),
         errors_by_category=_errors_by_category(outcomes),
     )
+
+
+def compare_outcomes(
+    baseline: str,
+    baseline_outcomes: list[CaseOutcome],
+    candidate: str,
+    candidate_outcomes: list[CaseOutcome],
+) -> BackendComparison:
+    baseline_by_id = {outcome.id: outcome for outcome in baseline_outcomes}
+    candidate_by_id = {outcome.id: outcome for outcome in candidate_outcomes}
+    if set(baseline_by_id) != set(candidate_by_id):
+        raise ValueError("Both backends must produce outcomes for the same case ids")
+
+    improved: list[str] = []
+    worsened: list[str] = []
+    changed: list[str] = []
+    unchanged: list[str] = []
+    for case_id in baseline_by_id:
+        baseline_outcome = baseline_by_id[case_id]
+        candidate_outcome = candidate_by_id[case_id]
+        baseline_correct = _is_fully_correct(baseline_outcome)
+        candidate_correct = _is_fully_correct(candidate_outcome)
+        if not baseline_correct and candidate_correct:
+            improved.append(case_id)
+        elif baseline_correct and not candidate_correct:
+            worsened.append(case_id)
+        elif (
+            baseline_outcome.valid == candidate_outcome.valid
+            and baseline_outcome.mismatches == candidate_outcome.mismatches
+        ):
+            unchanged.append(case_id)
+        else:
+            changed.append(case_id)
+
+    return BackendComparison(
+        baseline=baseline,
+        candidate=candidate,
+        baseline_metrics=metrics_from_outcomes(baseline_outcomes),
+        candidate_metrics=metrics_from_outcomes(candidate_outcomes),
+        improved=tuple(improved),
+        worsened=tuple(worsened),
+        changed=tuple(changed),
+        unchanged=tuple(unchanged),
+    )
+
+
+def _is_fully_correct(outcome: CaseOutcome) -> bool:
+    return outcome.valid and not outcome.mismatches
 
 
 def _accuracy(
@@ -422,11 +521,18 @@ def _top_confusions(
     return sorted(errors, reverse=True)[:limit]
 
 
-def print_summary(metrics: EvaluationMetrics, file: Any = None) -> None:
+def print_summary(
+    metrics: EvaluationMetrics,
+    file: Any = None,
+    label: str | None = None,
+) -> None:
     if file is None:
         file = sys.stderr
 
-    print("Resumen de evaluación", file=file)
+    title = "Resumen de evaluación"
+    if label:
+        title = f"{title} ({label})"
+    print(title, file=file)
     print(
         f"Casos: {metrics.total} | Válidos: {metrics.valid_responses} | "
         f"Errores: {metrics.errors}",
@@ -475,6 +581,77 @@ def print_summary(metrics: EvaluationMetrics, file: Any = None) -> None:
             print(f"Confusiones {field}: {formatted}", file=file)
 
 
+def print_comparison(comparison: BackendComparison, file: Any = None) -> None:
+    if file is None:
+        file = sys.stderr
+
+    baseline = comparison.baseline_metrics
+    candidate = comparison.candidate_metrics
+    total = baseline.total
+    print(
+        f"Comparación {comparison.baseline} -> {comparison.candidate}",
+        file=file,
+    )
+    print(
+        f"Casos: {total} | Mejoras: {len(comparison.improved)} | "
+        f"Empeoramientos: {len(comparison.worsened)} | "
+        f"Cambios: {len(comparison.changed)} | "
+        f"Sin cambios: {len(comparison.unchanged)}",
+        file=file,
+    )
+    print("Métricas (baseline -> candidato, delta):", file=file)
+    fields = (
+        ("category", "category_accuracy"),
+        ("severity", "severity_accuracy"),
+        ("priority", "priority_accuracy"),
+        ("missing", "missing_information_accuracy"),
+        ("confidence", "confidence_accuracy"),
+    )
+    for label, field in fields:
+        before = getattr(baseline, field)
+        after = getattr(candidate, field)
+        print(
+            f"  {label}: {before:.3f} -> {after:.3f} ({after - before:+.3f})",
+            file=file,
+        )
+    for label, field in (
+        ("macro-F1 category", "category_macro_f1"),
+        ("macro-F1 severity", "severity_macro_f1"),
+        ("macro-F1 priority", "priority_macro_f1"),
+    ):
+        before = getattr(baseline, field)
+        after = getattr(candidate, field)
+        print(
+            f"  {label}: {before:.3f} -> {after:.3f} ({after - before:+.3f})",
+            file=file,
+        )
+    print(
+        f"  latency p50: {baseline.latency_ms_p50:.2f} -> "
+        f"{candidate.latency_ms_p50:.2f} ms "
+        f"({candidate.latency_ms_p50 - baseline.latency_ms_p50:+.2f})",
+        file=file,
+    )
+    print(
+        f"  latency p95: {baseline.latency_ms_p95:.2f} -> "
+        f"{candidate.latency_ms_p95:.2f} ms "
+        f"({candidate.latency_ms_p95 - baseline.latency_ms_p95:+.2f})",
+        file=file,
+    )
+    print(
+        f"  errors: {baseline.errors} -> {candidate.errors} "
+        f"({candidate.errors - baseline.errors:+d})",
+        file=file,
+    )
+
+    for title, case_ids in (
+        ("Mejoran", comparison.improved),
+        ("Empeoran", comparison.worsened),
+        ("Cambian sin pasar a correcto", comparison.changed),
+    ):
+        if case_ids:
+            print(f"{title}: {', '.join(case_ids)}", file=file)
+
+
 def _configure_output_encoding() -> None:
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
@@ -511,9 +688,44 @@ def main() -> None:
         action="store_true",
         help="Print aggregate metrics and confidence calibration to stderr",
     )
+    parser.add_argument(
+        "--compare-with",
+        choices=("fake", "ollama"),
+        help=(
+            "Run a second backend on the same dataset and report metric deltas; "
+            "must differ from --backend"
+        ),
+    )
     args = parser.parse_args()
 
-    outcomes = evaluate_cases(build_analyzer(args.backend), load_dataset(args.dataset))
+    cases = load_dataset(args.dataset)
+    if args.compare_with is not None:
+        if args.compare_with == args.backend:
+            parser.error("--compare-with must be different from --backend")
+        baseline_outcomes = evaluate_cases(build_analyzer(args.backend), cases)
+        candidate_outcomes = evaluate_cases(
+            build_analyzer(args.compare_with),
+            cases,
+        )
+        comparison = compare_outcomes(
+            args.backend,
+            baseline_outcomes,
+            args.compare_with,
+            candidate_outcomes,
+        )
+        if args.verbose:
+            print(f"Resultados {args.backend}", file=sys.stderr)
+            print_outcomes(baseline_outcomes)
+            print(f"Resultados {args.compare_with}", file=sys.stderr)
+            print_outcomes(candidate_outcomes)
+        if args.summary:
+            print_summary(comparison.baseline_metrics, label=args.backend)
+            print_summary(comparison.candidate_metrics, label=args.compare_with)
+        print_comparison(comparison)
+        print(json.dumps(comparison.as_dict(), indent=2))
+        return
+
+    outcomes = evaluate_cases(build_analyzer(args.backend), cases)
     metrics = metrics_from_outcomes(outcomes)
     if args.verbose:
         print_outcomes(outcomes)

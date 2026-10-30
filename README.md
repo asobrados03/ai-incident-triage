@@ -182,6 +182,7 @@ python -m app.evaluation --dataset eval/data/incidents-holdout.json
 python -m app.evaluation --verbose
 python -m app.evaluation --summary
 python -m app.evaluation --summary --dataset eval/data/incidents-holdout-v2.json
+python -m app.evaluation --backend fake --compare-with ollama --summary
 ```
 
 `--verbose` imprime en `stderr` el resultado por caso y los campos que no coinciden. `--summary` imprime en `stderr` un
@@ -208,6 +209,17 @@ Además de la accuracy, el JSON incluye:
   accuracy. Sirve para comprobar si la confianza declarada se corresponde con los aciertos reales.
 - `errors_by_category`: número de fallos agrupados por la categoría esperada, para localizar qué clases concentran el
   error.
+
+`--compare-with` ejecuta dos backends sobre el mismo conjunto y compara resultados. El backend de `--backend` es la
+referencia y `--compare-with` el candidato; deben ser distintos. Imprime mejoras, empeoramientos, cambios entre fallos
+y deltas de accuracy, macro-F1, latencia y errores. En este modo el JSON cambia de forma: incluye `baseline.metrics`,
+`candidate.metrics`, `deltas` y `cases`. Es la forma reproducible de responder si Ollama mejora al baseline:
+
+```powershell
+python -m app.evaluation --backend fake --compare-with ollama --summary
+```
+
+Ese comando sí necesita Ollama levantado; los tests siguen sin llamar al LLM.
 
 En el holdout v2, la categoría acierta 12/12 y los dos fallos son ilustrativos: “no está disponible” no activa la
 criticidad porque la regla solo reconoce “no disponible”, y un bug sin señal léxica clara queda en confianza `low`
@@ -275,10 +287,10 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 > con normalización, reglas explicables y señales de impacto; Ollama es un adaptador opcional. La propuesta se persiste
 > separada de la revisión humana, así puedo auditar qué sugirió el sistema y qué cambió la persona. Medí accuracy,
 > macro-F1, precisión/recall de faltantes, matrices de confusión, calibración de confianza y percentiles de latencia en
-> desarrollo, un holdout original, un conjunto de regresión y un holdout ciego escrito después de los cambios; sé que
-> el fake no mide calidad de LLM y que 12 casos son una muestra pequeña. Elegí SQLite para reducir el coste operativo
-> del MVP, añadí límites, errores explícitos, logs JSON sin contenido sensible y CI/Docker para que la demo sea
-> reproducible.”
+> desarrollo, un holdout original, un conjunto de regresión y un holdout ciego escrito después de los cambios; además
+> puedo comparar fake frente a Ollama con deltas por caso, métrica y latencia. Sé que el fake no mide calidad de LLM y
+> que 12 casos son una muestra pequeña. Elegí SQLite para reducir el coste operativo del MVP, añadí límites, errores
+> explícitos, logs JSON sin contenido sensible y CI/Docker para que la demo sea reproducible.”
 
 ## Limitaciones y mejoras futuras
 

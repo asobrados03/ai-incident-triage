@@ -1,20 +1,129 @@
 import json
 from pathlib import Path
+import sys
 
+from app import evaluation as evaluation_module
 from app.analyzer import FakeAnalyzer
 from app.evaluation import (
     DEFAULT_HOLDOUT_DATASET,
     DEFAULT_HOLDOUT_V2_DATASET,
     DEFAULT_REGRESSION_DATASET,
     EvaluationCase,
+    compare_outcomes,
     evaluate,
     evaluate_cases,
     load_dataset,
     metrics_from_outcomes,
+    print_comparison,
     print_outcomes,
     print_summary,
 )
 from app.schemas import IncidentCreate, TriageResult
+
+
+def _triage(
+    category: str,
+    severity: str,
+    priority: str,
+    confidence: str = "high",
+) -> TriageResult:
+    return TriageResult(
+        category=category,
+        severity=severity,
+        priority=priority,
+        summary="Resultado fijo",
+        affected_components=[],
+        missing_information=[],
+        justification="Resultado fijo para el test.",
+        confidence=confidence,
+    )
+
+
+def _comparison_inputs():
+    expected = {
+        "improves": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high",
+        },
+        "worsens": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [],
+            "confidence": "high",
+        },
+        "both-correct": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [],
+            "confidence": "high",
+        },
+        "same-failure": {
+            "category": "documentation",
+            "severity": "low",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high",
+        },
+        "changed": {
+            "category": "configuration",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high",
+        },
+    }
+    cases = [
+        EvaluationCase(
+            id=case_id,
+            input=IncidentCreate(title=case_id, description="Descripción"),
+            expected=case_expected,
+        )
+        for case_id, case_expected in expected.items()
+    ]
+
+    class MappingAnalyzer:
+        def __init__(self, results: dict[str, TriageResult]) -> None:
+            self.results = results
+
+        def analyze(self, incident: IncidentCreate) -> TriageResult:
+            return self.results[incident.title]
+
+    bug = _triage("bug", "medium", "medium")
+    feature = _triage("feature", "low", "low")
+    baseline = MappingAnalyzer(
+        {
+            "improves": feature,
+            "worsens": feature,
+            "both-correct": feature,
+            "same-failure": bug,
+            "changed": bug,
+        },
+    )
+    candidate = MappingAnalyzer(
+        {
+            "improves": bug,
+            "worsens": bug,
+            "both-correct": feature,
+            "same-failure": bug,
+            "changed": _triage("bug", "high", "high"),
+        },
+    )
+    return cases, baseline, candidate
+
+
+def _comparison_fixture():
+    cases, baseline, candidate = _comparison_inputs()
+    return compare_outcomes(
+        "baseline",
+        evaluate_cases(baseline, cases),
+        "candidate",
+        evaluate_cases(candidate, cases),
+    )
 
 
 def test_load_reference_dataset_has_balanced_cases() -> None:
@@ -235,6 +344,75 @@ def test_print_summary_includes_calibration_and_error_analysis(capsys) -> None:
     assert "Resumen de evaluación" in captured.err
     assert "Calibración de confianza" in captured.err
     assert "Errores por categoría esperada" in captured.err
+
+
+def test_compare_outcomes_classifies_improvements_and_worsenings() -> None:
+    comparison = _comparison_fixture()
+
+    assert comparison.improved == ("improves",)
+    assert comparison.worsened == ("worsens",)
+    assert set(comparison.unchanged) == {"both-correct", "same-failure"}
+    assert comparison.changed == ("changed",)
+    assert comparison.baseline_metrics.total == 5
+    assert comparison.candidate_metrics.total == 5
+    assert "category_accuracy" in comparison.deltas()
+
+
+def test_compare_outcomes_serializes_metrics_and_case_groups() -> None:
+    payload = _comparison_fixture().as_dict()
+
+    assert payload["baseline"]["backend"] == "baseline"
+    assert payload["candidate"]["backend"] == "candidate"
+    assert payload["cases"]["improved"] == ["improves"]
+    assert payload["cases"]["worsened"] == ["worsens"]
+    assert payload["deltas"]["category_accuracy"] == 0.0
+
+
+def test_print_comparison_reports_deltas_and_changed_cases(capsys) -> None:
+    print_comparison(_comparison_fixture())
+
+    captured = capsys.readouterr()
+    assert "Comparación baseline -> candidate" in captured.err
+    assert "Mejoras: 1" in captured.err
+    assert "Empeoramientos: 1" in captured.err
+    assert "Mejoran: improves" in captured.err
+    assert "Empeoran: worsens" in captured.err
+    assert "category:" in captured.err
+    assert "latency p50:" in captured.err
+
+
+def test_main_compare_mode_uses_two_backends(monkeypatch, capsys) -> None:
+    cases, baseline, candidate = _comparison_inputs()
+    analyzers = {"fake": baseline, "ollama": candidate}
+    monkeypatch.setattr(
+        evaluation_module,
+        "build_analyzer",
+        lambda backend: analyzers[backend],
+    )
+    monkeypatch.setattr(evaluation_module, "load_dataset", lambda path: cases)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "evaluation",
+            "--backend",
+            "fake",
+            "--compare-with",
+            "ollama",
+            "--summary",
+        ],
+    )
+
+    evaluation_module.main()
+
+    captured = capsys.readouterr()
+    assert "Comparación fake -> ollama" in captured.err
+    assert "Resumen de evaluación (fake)" in captured.err
+    assert "Resumen de evaluación (ollama)" in captured.err
+    payload = json.loads(captured.out)
+    assert payload["baseline"]["backend"] == "fake"
+    assert payload["candidate"]["backend"] == "ollama"
+    assert payload["cases"]["improved"] == ["improves"]
 
 
 def test_evaluate_cases_reports_mismatches_per_case() -> None:
