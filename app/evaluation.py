@@ -30,6 +30,18 @@ DEFAULT_HOLDOUT_DATASET = (
     / "data"
     / "incidents-holdout.json"
 )
+DEFAULT_HOLDOUT_V2_DATASET = (
+    Path(__file__).resolve().parent.parent
+    / "eval"
+    / "data"
+    / "incidents-holdout-v2.json"
+)
+DEFAULT_REGRESSION_DATASET = (
+    Path(__file__).resolve().parent.parent
+    / "eval"
+    / "data"
+    / "incidents-regression.json"
+)
 
 _ENUM_FIELDS: dict[str, tuple[str, ...]] = {
     "category": tuple(category.value for category in IncidentCategory),

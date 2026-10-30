@@ -139,3 +139,108 @@ def test_justification_explains_the_detected_signals() -> None:
 
     assert "señales de categoría" in result.justification
     assert "prioridad low" in result.justification
+
+
+def test_privacy_leak_is_critical_and_urgent() -> None:
+    result = analyze(
+        title="Usuarios ven datos de otra cuenta",
+        description="Al abrir el panel, algunos usuarios ven datos de otra cuenta.",
+        components=["frontend", "auth"],
+    )
+
+    assert result.category == "bug"
+    assert result.severity == "critical"
+    assert result.priority == "urgent"
+
+
+def test_unsaved_changes_are_high_impact_but_not_data_loss() -> None:
+    result = analyze(
+        title="Los cambios del editor no se guardan",
+        description="Al cerrar la pestaña se pierden los cambios del editor.",
+        components=["editor", "frontend"],
+    )
+
+    assert result.category == "bug"
+    assert result.severity == "high"
+    assert result.priority == "high"
+
+
+def test_comparative_slowdown_is_performance() -> None:
+    result = analyze(
+        title="Los informes van más despacio los lunes",
+        description="Los informes van más despacio los lunes por la mañana.",
+        components=["reports"],
+    )
+
+    assert result.category == "performance"
+    assert result.severity == "medium"
+    assert result.priority == "medium"
+
+
+def test_missing_ui_element_is_a_bug_not_a_feature_request() -> None:
+    result = analyze(
+        title="No aparece el botón de exportar",
+        description="El botón para exportar no aparece en el listado.",
+        components=["frontend", "reports"],
+    )
+
+    assert result.category == "bug"
+    assert result.severity == "medium"
+    assert result.priority == "medium"
+
+
+def test_invalid_credentials_point_to_configuration() -> None:
+    result = analyze(
+        title="Credenciales inválidas al conectar con el almacenamiento",
+        description=(
+            "La aplicación no conecta con el almacenamiento porque las "
+            "credenciales son inválidas."
+        ),
+        environment="Staging",
+        components=["backend", "storage"],
+    )
+
+    assert result.category == "configuration"
+    assert result.severity == "medium"
+    assert result.priority == "high"
+
+
+def test_account_switching_request_is_not_a_security_incident() -> None:
+    result = analyze(
+        title="Solicitud de cambio rápido de cuenta",
+        description="Se solicita poder cambiar a otra cuenta sin cerrar sesión.",
+        steps_to_reproduce="N/A",
+    )
+
+    assert result.category == "feature"
+    assert result.severity == "low"
+    assert result.priority == "low"
+
+
+def test_document_word_does_not_imply_documentation() -> None:
+    result = analyze(
+        title="El autoguardado pierde cambios",
+        description="Al cerrar la pestaña se pierden los cambios del documento.",
+        components=["editor", "frontend"],
+    )
+
+    assert result.category == "bug"
+    assert result.severity == "high"
+    assert result.priority == "high"
+    assert result.confidence == "medium"
+
+
+def test_install_guide_is_documentation_even_if_it_mentions_configuration() -> None:
+    result = analyze(
+        title="La guía de instalación omite un paso",
+        description=(
+            "La guía de instalación no incluye el paso para configurar la "
+            "base de datos."
+        ),
+        environment="Desarrollo",
+        components=["docs"],
+    )
+
+    assert result.category == "documentation"
+    assert result.severity == "low"
+    assert result.priority == "medium"

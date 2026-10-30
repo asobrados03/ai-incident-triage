@@ -1,0 +1,206 @@
+[
+  {
+    "id": "foreign-invoices-visible",
+    "input": {
+      "title": "Facturas de otra cuenta visibles",
+      "description": "Un usuario puede abrir las facturas de otra cuenta desde el historial.",
+      "steps_to_reproduce": "Iniciar sesión con dos cuentas y abrir el historial.",
+      "environment": "Producción",
+      "components": ["frontend", "billing"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "autosave-loses-changes",
+    "input": {
+      "title": "El autoguardado pierde cambios",
+      "description": "Al cerrar la pestaña se pierden los cambios del documento.",
+      "steps_to_reproduce": "Editar un documento, cerrar la pestaña y reabrirlo.",
+      "environment": "Producción",
+      "components": ["editor", "frontend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "export-control-not-visible",
+    "input": {
+      "title": "El botón de exportación no aparece",
+      "description": "En el listado de pedidos, el botón para exportar no aparece.",
+      "steps_to_reproduce": "Abrir el listado de pedidos.",
+      "environment": "Producción",
+      "components": ["frontend", "reports"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "order-page-load-time",
+    "input": {
+      "title": "La página de pedidos tarda 8 segundos en cargar",
+      "description": "La página de pedidos tarda 8 segundos en cargar con datos reales.",
+      "steps_to_reproduce": "Abrir la página de pedidos en producción.",
+      "environment": "Producción",
+      "components": ["frontend", "backend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "invalid-credentials-storage",
+    "input": {
+      "title": "Credenciales inválidas al conectar con el almacenamiento",
+      "description": "La aplicación no conecta con el almacenamiento porque las credenciales son inválidas.",
+      "steps_to_reproduce": "Subir un archivo desde la aplicación.",
+      "environment": "Staging",
+      "components": ["backend", "storage"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "cors-preflight-blocked",
+    "input": {
+      "title": "El navegador bloquea las peticiones por CORS",
+      "description": "El navegador bloquea las peticiones porque la cabecera CORS no está configurada.",
+      "steps_to_reproduce": "Llamar al endpoint desde el frontend.",
+      "environment": "Staging",
+      "components": ["frontend", "api"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "excel-export-request",
+    "input": {
+      "title": "Solicitud de exportación a Excel",
+      "description": "Se solicita añadir exportación a Excel en los informes.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["reports"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "install-guide-missing-step",
+    "input": {
+      "title": "La guía de instalación omite un paso",
+      "description": "La guía de instalación no incluye el paso para configurar la base de datos.",
+      "steps_to_reproduce": "Seguir la guía desde el principio.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "large-upload-slow",
+    "input": {
+      "title": "La subida de archivos grandes es muy lenta",
+      "description": "Subir archivos de más de 1 GB es muy lento y bloquea la interfaz.",
+      "steps_to_reproduce": "Subir un archivo de 2 GB.",
+      "environment": "Producción",
+      "components": ["storage", "frontend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "login-crash-all-users",
+    "input": {
+      "title": "La aplicación se cierra al iniciar sesión",
+      "description": "Al iniciar sesión, la aplicación se cierra para todos los usuarios.",
+      "steps_to_reproduce": "Abrir la aplicación e iniciar sesión.",
+      "environment": "Producción",
+      "components": ["auth", "frontend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "daily-summary-request",
+    "input": {
+      "title": "Solicitud de resumen diario por correo",
+      "description": "Se solicita recibir un resumen diario de incidencias por correo.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["notifications"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "readme-wrong-command",
+    "input": {
+      "title": "El README muestra un comando incorrecto",
+      "description": "El README incluye un comando incorrecto para arrancar la API.",
+      "steps_to_reproduce": "Seguir el README.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  }
+]

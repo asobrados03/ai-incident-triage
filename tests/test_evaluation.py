@@ -4,6 +4,8 @@ from pathlib import Path
 from app.analyzer import FakeAnalyzer
 from app.evaluation import (
     DEFAULT_HOLDOUT_DATASET,
+    DEFAULT_HOLDOUT_V2_DATASET,
+    DEFAULT_REGRESSION_DATASET,
     EvaluationCase,
     evaluate,
     evaluate_cases,
@@ -64,6 +66,42 @@ def test_holdout_dataset_is_separate_from_the_development_set() -> None:
 
     assert len(holdout) == 12
     assert not {case.id for case in development} & {case.id for case in holdout}
+
+
+def test_all_holdouts_and_regression_sets_have_disjoint_ids() -> None:
+    datasets = [
+        load_dataset(path)
+        for path in (
+            DEFAULT_HOLDOUT_DATASET,
+            DEFAULT_HOLDOUT_V2_DATASET,
+            DEFAULT_REGRESSION_DATASET,
+        )
+    ]
+    ids = [{case.id for case in cases} for cases in datasets]
+
+    for index, current in enumerate(ids):
+        assert len(current) == 12
+        for other in ids[index + 1 :]:
+            assert not current & other
+        assert not current & {case.id for case in load_dataset()}
+
+
+def test_blind_holdout_covers_every_category_and_severity() -> None:
+    cases = load_dataset(DEFAULT_HOLDOUT_V2_DATASET)
+
+    assert {case.expected["category"] for case in cases} == {
+        "bug",
+        "feature",
+        "documentation",
+        "configuration",
+        "performance",
+    }
+    assert {case.expected["severity"] for case in cases} == {
+        "low",
+        "medium",
+        "high",
+        "critical",
+    }
 
 
 def test_fake_evaluation_is_reproducible_and_bounded() -> None:

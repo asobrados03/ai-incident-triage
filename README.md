@@ -164,17 +164,24 @@ sin fallback silencioso ni trazas en la respuesta. Los tests nunca llaman a Olla
 
 ## Evaluación offline
 
-Hay dos conjuntos separados para evitar medir solo sobre los casos usados durante el ajuste:
+Hay varios conjuntos con propósitos distintos:
 
-- `eval/data/incidents.json`: 28 casos de desarrollo.
-- `eval/data/incidents-holdout.json`: 12 casos no usados para ajustar las reglas.
+- `eval/data/incidents.json`: 28 casos de desarrollo, usados para ajustar las reglas.
+- `eval/data/incidents-holdout.json`: 12 casos del primer holdout. Se usó para detectar el fallo de credenciales, así
+  que después de corregirlo ya no es una referencia ciega.
+- `eval/data/incidents-regression.json`: 12 casos que encontraron falsos positivos durante esta iteración (“documento”
+  interpretado como documentación, guías que mencionan configuración). Se conserva como regresión.
+- `eval/data/incidents-holdout-v2.json`: 12 casos escritos después de los cambios y ejecutados una sola vez. Es la
+  referencia más honesta de generalización de esta iteración.
 
 ```powershell
 python -m app.evaluation
+python -m app.evaluation --dataset eval/data/incidents-holdout-v2.json
+python -m app.evaluation --dataset eval/data/incidents-regression.json
 python -m app.evaluation --dataset eval/data/incidents-holdout.json
 python -m app.evaluation --verbose
 python -m app.evaluation --summary
-python -m app.evaluation --summary --dataset eval/data/incidents-holdout.json
+python -m app.evaluation --summary --dataset eval/data/incidents-holdout-v2.json
 ```
 
 `--verbose` imprime en `stderr` el resultado por caso y los campos que no coinciden. `--summary` imprime en `stderr` un
@@ -185,8 +192,10 @@ varía la latencia. Una ejecución reciente del baseline `FakeAnalyzer` produce:
 
 | Conjunto | Casos | Category | Severity | Priority | Missing info | Confidence | Errores |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Desarrollo | 28 | 0.929 | 0.893 | 0.893 | 1.000 | 0.893 | 0 |
-| Holdout | 12 | 0.917 | 1.000 | 0.917 | 1.000 | 1.000 | 0 |
+| Desarrollo (ajuste) | 28 | 1.000 | 1.000 | 1.000 | 1.000 | 0.893 | 0 |
+| Holdout original (ya no ciego) | 12 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
+| Regresión | 12 | 1.000 | 0.917 | 1.000 | 1.000 | 1.000 | 0 |
+| Holdout v2 (ciego) | 12 | 1.000 | 0.917 | 0.917 | 1.000 | 0.917 | 0 |
 
 Además de la accuracy, el JSON incluye:
 
@@ -200,20 +209,18 @@ Además de la accuracy, el JSON incluye:
 - `errors_by_category`: número de fallos agrupados por la categoría esperada, para localizar qué clases concentran el
   error.
 
-La calibración actual del baseline es coherente: en desarrollo, `high` acierta 22/23 (0.957) y `medium` 2/2; `low`
-acierta 0/3, lo que indica que las reglas ya marcan como dudosos los casos que fallan. En holdout, `high` acierta 9/10
-(0.900) y `medium` 2/2. El error de holdout se concentra en `configuration`, por la confusión ya descrita con la señal
-de bug.
+En el holdout v2, la categoría acierta 12/12 y los dos fallos son ilustrativos: “no está disponible” no activa la
+criticidad porque la regla solo reconoce “no disponible”, y un bug sin señal léxica clara queda en confianza `low`
+frente a `medium`. No se ajustaron las reglas después de ver ese resultado. En desarrollo, la confianza `medium` acierta
+2/2 y `high` 23/26; los tres desacuerdos son casos etiquetados como `medium` que el motor considera `high`.
 
 Un acierto de enum exige igualdad exacta. `missing_information` se sigue comparando como lista exacta para la
 accuracy, pero las métricas de precisión/recall/F1 permiten distinguir entre olvidar un concepto y añadir uno de más.
 `summary` y `justification` no se puntúan por similitud de texto libre.
 
-El 0.929 de desarrollo es optimista porque esas reglas se ajustaron con ese conjunto; el holdout es la referencia más
-honesta. Con 12 casos, un solo fallo mueve la accuracy unos 8 puntos, así que los resultados deben leerse como una
-señal de robustez del baseline, no como una estimación precisa. El único fallo actual del holdout es una incidencia de
-credenciales que también contiene `error` y `falla`, y el motor prioriza la señal de bug. Para Ollama, con el runtime
-ya disponible:
+El 1.000 de desarrollo es optimista porque esas reglas se ajustaron con ese conjunto. Los holdouts tienen 12 casos: un
+solo fallo mueve la accuracy unos 8 puntos, así que los resultados deben leerse como una señal de robustez del
+baseline, no como una estimación precisa. Para Ollama, con el runtime ya disponible:
 
 ```powershell
 python -m app.evaluation --backend ollama
@@ -268,22 +275,26 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 > con normalización, reglas explicables y señales de impacto; Ollama es un adaptador opcional. La propuesta se persiste
 > separada de la revisión humana, así puedo auditar qué sugirió el sistema y qué cambió la persona. Medí accuracy,
 > macro-F1, precisión/recall de faltantes, matrices de confusión, calibración de confianza y percentiles de latencia en
-> un conjunto de desarrollo y otro holdout; sé que el fake no mide calidad de LLM y que el holdout es pequeño. Elegí
-> SQLite para reducir el coste operativo del MVP, añadí límites, errores explícitos, logs JSON sin contenido sensible y
-> CI/Docker para que la demo sea reproducible.” 
+> desarrollo, un holdout original, un conjunto de regresión y un holdout ciego escrito después de los cambios; sé que
+> el fake no mide calidad de LLM y que 12 casos son una muestra pequeña. Elegí SQLite para reducir el coste operativo
+> del MVP, añadí límites, errores explícitos, logs JSON sin contenido sensible y CI/Docker para que la demo sea
+> reproducible.”
 
 ## Limitaciones y mejoras futuras
 
 - Dataset pequeño y etiquetado manualmente; ampliar casos, revisar el acuerdo entre etiquetadores y añadir más
   ejemplos por clase antes de interpretar las métricas como una estimación estable.
-- El `FakeAnalyzer` sigue siendo un motor de reglas, no comprensión semántica. Fallos conocidos: seguridad descrita de
-  forma indirecta (“datos de otra cuenta”), sinónimos no contemplados como “va más despacio”, elementos de UI que
-  “no aparecen” y casos de credenciales que también contienen `error`/`falla`. No se ajustó para forzar una puntuación
+- El `FakeAnalyzer` sigue siendo un motor de reglas, no comprensión semántica. Se corrigieron los fallos de seguridad
+  indirecta (“datos de otra cuenta”), sinónimos como “va más despacio”, elementos de UI que “no aparecen” y
+  credenciales que también contienen `error`/`falla`. Quedan variantes literales (“no está disponible” frente a “no
+  disponible”), giros como “pierde cambios” sin “se”, documentación que menciona configuración y la confianza en bugs
+  sin señal léxica clara. El caso CORS del conjunto de regresión sigue etiquetado como `medium` y el motor lo marca
+  como `high`: es una ambigüedad de política, no un fallo evidente. No se ajustó para forzar una puntuación
   artificialmente perfecta.
 - `missing_information` se puntúa con listas exactas además de micro-F1; con pocos casos positivos, una métrica de 1.0
   no debe interpretarse como calidad de producción.
 - Añadir análisis de errores por clase y calibración de confianza con más volumen: ya existen ambos en el JSON y en
-  `--summary`, pero con 40 casos son señales, no estimaciones estables.
+  `--summary`, pero con 64 casos repartidos en varios conjuntos siguen siendo señales, no estimaciones estables.
 - Incorporar PostgreSQL y migraciones al requerir despliegue multiinstancia.
 - Añadir autenticación, autorización, retención y auditoría de usuarios antes de producción.
 - Añadir UI y revisión humana enriquecida después de estabilizar el contrato API.

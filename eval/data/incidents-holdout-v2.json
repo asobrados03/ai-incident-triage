@@ -1,0 +1,206 @@
+[
+  {
+    "id": "invoice-download-permission",
+    "input": {
+      "title": "Un usuario descarga facturas de otra cuenta",
+      "description": "Desde el historial, un usuario puede descargar las facturas de otra cuenta.",
+      "steps_to_reproduce": "Iniciar sesión con dos cuentas y abrir el historial.",
+      "environment": "Producción",
+      "components": ["frontend", "billing"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "form-values-not-persisted",
+    "input": {
+      "title": "Los valores del formulario no se guardan",
+      "description": "Al pulsar Guardar, los valores del formulario no se guardan y se pierden al recargar.",
+      "steps_to_reproduce": "Rellenar el formulario, guardar y recargar.",
+      "environment": "Producción",
+      "components": ["frontend", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "filter-dropdown-missing",
+    "input": {
+      "title": "No se muestra el filtro de fechas",
+      "description": "En el listado de incidencias no se muestra el filtro de fechas.",
+      "steps_to_reproduce": "Abrir el listado de incidencias.",
+      "environment": "Producción",
+      "components": ["frontend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "report-export-timeout",
+    "input": {
+      "title": "La exportación de informes agota el tiempo de espera",
+      "description": "Exportar el informe anual tarda más de 5 minutos y termina en timeout.",
+      "steps_to_reproduce": "Exportar el informe anual completo.",
+      "environment": "Producción",
+      "components": ["reports", "backend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "database-url-missing",
+    "input": {
+      "title": "La API falla al arrancar sin DATABASE_URL",
+      "description": "La API no arranca porque falta la variable de entorno DATABASE_URL.",
+      "steps_to_reproduce": "Arrancar la API sin definir DATABASE_URL.",
+      "environment": "Staging",
+      "components": ["backend", "deployment"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "cors-header-not-configured",
+    "input": {
+      "title": "El frontend no conecta con la API por CORS",
+      "description": "El frontend no conecta con la API por una configuración CORS incorrecta.",
+      "steps_to_reproduce": "Abrir la aplicación web y llamar a la API.",
+      "environment": "Staging",
+      "components": ["frontend", "api"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "dark-theme-request",
+    "input": {
+      "title": "Solicitud de tema claro",
+      "description": "Se solicita añadir un tema claro a la interfaz.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["frontend"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "changelog-guide-outdated",
+    "input": {
+      "title": "La guía de cambios está desactualizada",
+      "description": "La guía de cambios no incluye las novedades de la última versión.",
+      "steps_to_reproduce": "Abrir la guía de cambios.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "delete-account-request",
+    "input": {
+      "title": "Solicitud de eliminar la cuenta desde el perfil",
+      "description": "Se solicita permitir eliminar la cuenta desde la página de perfil.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["auth", "frontend"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "api-502-after-deploy",
+    "input": {
+      "title": "La API devuelve 502 tras el despliegue",
+      "description": "Después del despliegue, la API devuelve errores 502 para todos los usuarios.",
+      "steps_to_reproduce": "Desplegar y llamar al endpoint de salud.",
+      "environment": "Producción",
+      "components": ["api", "deployment"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "memory-growth-after-update",
+    "input": {
+      "title": "El consumo de memoria crece tras la actualización",
+      "description": "Desde la última actualización, el consumo de memoria crece sin parar hasta que la aplicación no está disponible.",
+      "steps_to_reproduce": "Dejar la aplicación en marcha durante varias horas.",
+      "environment": "Producción",
+      "components": ["backend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "critical",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "search-results-outdated",
+    "input": {
+      "title": "El buscador muestra resultados antiguos",
+      "description": "Al buscar una incidencia recién creada, el buscador no la encuentra y muestra resultados antiguos.",
+      "steps_to_reproduce": "Crear una incidencia y buscarla inmediatamente.",
+      "environment": "Producción",
+      "components": ["search", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "medium"
+    }
+  }
+]

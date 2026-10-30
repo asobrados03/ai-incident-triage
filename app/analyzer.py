@@ -60,6 +60,7 @@ _CATEGORY_SIGNALS: dict[str, tuple[_Signal, ...]] = {
         _Signal("tardanza", r"\btard(?:a|an|anza|o|aron|aba|aban)\b", 2),
         _Signal("rendimiento", r"\brendimiento", 2),
         _Signal("performance", r"\bperformance\b|\bslow\b", 2),
+        _Signal("lentitud comparativa", r"\bdespacio\b|\bmas lento\b|\bva lento\b", 2),
         _Signal("timeout", r"\btimeout\b|\btiempo de espera", 2),
         _Signal(
             "duración",
@@ -70,6 +71,11 @@ _CATEGORY_SIGNALS: dict[str, tuple[_Signal, ...]] = {
     ),
     "configuration": (
         _Signal("configuración", r"\bconfig", 2),
+        _Signal(
+            "configuración incorrecta",
+            r"\bconfig\w*\s+(?:incorrect|invalid|errone)\w*",
+            2,
+        ),
         _Signal("variables de entorno", r"\bvariable|\bentorno\b|\b\.env\b", 2),
         _Signal("database_url", r"database_url", 3),
         _Signal("conexión", r"\bconexion|\bconect", 2),
@@ -78,10 +84,10 @@ _CATEGORY_SIGNALS: dict[str, tuple[_Signal, ...]] = {
         _Signal("credenciales", r"\bcredencial|\bcontrasen", 2),
     ),
     "documentation": (
-        _Signal("documentación", r"\bdocument", 2),
+        _Signal("documentación", r"\bdocument(?:acion|al)\b", 2),
         _Signal("readme", r"\breadme\b", 2),
         _Signal("docs", r"\bdocs?\b", 2),
-        _Signal("guía", r"\bguia|\bmanual\b|\btutorial\b", 2),
+        _Signal("guía", r"\bguia|\bmanual\b|\btutorial\b", 3),
         _Signal("instrucciones", r"\binstruccion", 2),
     ),
     "feature": (
@@ -102,6 +108,18 @@ _CATEGORY_SIGNALS: dict[str, tuple[_Signal, ...]] = {
         ),
         _Signal("no recibe", r"\bno recib", 2),
         _Signal("no conecta", r"\bno conect", 2),
+        _Signal(
+            "elemento ausente",
+            r"\bno aparece|\bno se muestra|\bno visible|\bdesaparec",
+            3,
+        ),
+        _Signal("no se guarda", r"\bno se guard", 2),
+        _Signal(
+            "exposición de datos",
+            r"\b(?:datos|facturas|pedidos|informacion|documentos|archivos) de otr[ao]"
+            r"|\bcuenta ajena|\bacceso indebido|\bfuga de datos",
+            2,
+        ),
         _Signal("excepción", r"\bexcepcion|\bexception\b", 2),
         _Signal("cierre", r"\bcrash\b|\bcierr", 3),
         _Signal(
@@ -122,22 +140,29 @@ _CRITICAL_IMPACT = (
     r"\bperdida de datos|\bdatos perdidos|\bcorrupcion|\bseguridad\b"
     r"|\bvulnerabilidad|\bcaida\b|\bno disponible|\bse cierra"
     r"|\bcierre de la aplicacion|\bcrash\b|\bcritico\b"
+    r"|\b(?:datos|facturas|pedidos|informacion|documentos|archivos) de otr[ao]"
+    r"|\bcuenta ajena|\bacceso indebido|\bfuga de datos"
 )
 _HIGH_IMPACT = (
     r"\btodos los usuarios|\btodo el mundo|\btoda la organizacion"
     r"|\berror(?:es)?(?:\s+http)?\s+5\d{2}\b|\bhttp\s+5\d{2}\b"
     r"|\bbloquea|\bno recib|\btardan|\btarda\b|\bdemora"
     r"|\binterrupcion|\bafecta a todos|\bmuy lento|\bgravemente"
+    r"|\bpierden\b|\bse pierde|\bno se guard|\bcambios sin guardar"
 )
 _MEDIUM_IMPACT = (
     r"\berror|\bincorrect|\bfall|\bno conect|\bproblema|\bdegradad"
     r"|\blent(?:o|a|os|as|itud)\b|\bparcial|\bno funciona|\bno se puede"
+    r"|\bdespacio\b|\bmas lento\b|\bno aparece|\bno se muestra"
+    r"|\bno visible|\bdesaparec"
 )
 _URGENT_IMPACT = (
     r"\btodos los usuarios|\btodo el mundo|\btoda la organizacion"
     r"|\bcaida\b|\bno disponible|\bperdida de datos|\bdatos perdidos"
     r"|\bseguridad\b|\bvulnerabilidad|\burgente|\bcuanto antes"
     r"|\bbloqueante"
+    r"|\b(?:datos|facturas|pedidos|informacion|documentos|archivos) de otr[ao]"
+    r"|\bcuenta ajena|\bacceso indebido|\bfuga de datos"
 )
 _CONNECTIVITY_IMPACT = (
     r"\bconect|\bconexion|\bdatabase_url|\bdespliegue|\bcredencial"
@@ -185,6 +210,7 @@ class FakeAnalyzer:
         confidence = self._confidence(
             missing_information,
             category_scores,
+            severity,
         )
 
         return TriageResult(
@@ -307,6 +333,7 @@ class FakeAnalyzer:
     def _confidence(
         missing_information: list[str],
         category_scores: dict[str, int],
+        severity: str,
     ) -> str:
         if missing_information:
             return "medium"
@@ -314,7 +341,7 @@ class FakeAnalyzer:
         top = ordered[0] if ordered else 0
         second = ordered[1] if len(ordered) > 1 else 0
         if top == 0:
-            return "low"
+            return "medium" if severity in {"high", "critical"} else "low"
         if top == second:
             return "medium"
         return "high"
