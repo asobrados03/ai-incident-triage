@@ -142,8 +142,11 @@ máximo 20 elementos. Los campos desconocidos se rechazan.
 
 ## FakeAnalyzer y Ollama
 
-`FakeAnalyzer` es el backend por defecto: determinista, local y útil para comprobar plumbing y transiciones, no para
-medir calidad semántica de un LLM. Ollama es opcional:
+`FakeAnalyzer` es el backend por defecto: determinista, local y explicable. Normaliza mayúsculas y acentos, aplica
+reglas con límites de palabra y puntúa señales de categoría, severidad y prioridad. También detecta conceptos que
+faltan en el texto (latencia, porcentaje afectado, ventana temporal, correlación y observabilidad) cuando la
+incidencia es ambigua. La justificación enumera las señales que han influido en la propuesta. Sigue siendo un
+baseline de reglas, no una medida de calidad semántica de un LLM. Ollama es opcional:
 
 ```powershell
 irm https://ollama.com/install.ps1 | iex
@@ -161,37 +164,56 @@ sin fallback silencioso ni trazas en la respuesta. Los tests nunca llaman a Olla
 
 ## Evaluación offline
 
-`eval/data/incidents.json` contiene 8 incidencias etiquetadas. Ejecuta:
+Hay dos conjuntos separados para evitar medir solo sobre los casos usados durante el ajuste:
+
+- `eval/data/incidents.json`: 28 casos de desarrollo.
+- `eval/data/incidents-holdout.json`: 12 casos no usados para ajustar las reglas.
 
 ```powershell
 python -m app.evaluation
+python -m app.evaluation --dataset eval/data/incidents-holdout.json
+python -m app.evaluation --verbose
+python -m app.evaluation --summary
+python -m app.evaluation --summary --dataset eval/data/incidents-holdout.json
 ```
 
-La salida fake es una referencia reproducible, pero no se espera exactitud perfecta: el dataset representa etiquetas
-manuales de negocio y `FakeAnalyzer` solo implementa reglas simples de baseline. Una ejecución reciente produce:
+`--verbose` imprime en `stderr` el resultado por caso y los campos que no coinciden. `--summary` imprime en `stderr` un
+resumen legible (accuracy, macro-F1, calibración de confianza, errores por categoría esperada y principales
+confusiones). En ambos casos el JSON de métricas permanece en `stdout` para poder redirigirlo. La salida se fuerza a
+UTF-8 para que los acentos no se corrompan al redirigir en Windows. Las métricas de calidad son reproducibles; solo
+varía la latencia. Una ejecución reciente del baseline `FakeAnalyzer` produce:
 
-```json
-{
-  "total": 8,
-  "valid_responses": 8,
-  "category_accuracy": 0.75,
-  "severity_accuracy": 0.375,
-  "priority_accuracy": 0.0,
-  "missing_information_accuracy": 0.875,
-  "confidence_accuracy": 0.875,
-  "errors": 0,
-  "error_rate": 0.0,
-  "latency_ms_total": 0.54,
-  "latency_ms_average": 0.07
-}
-```
+| Conjunto | Casos | Category | Severity | Priority | Missing info | Confidence | Errores |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Desarrollo | 28 | 0.929 | 0.893 | 0.893 | 1.000 | 0.893 | 0 |
+| Holdout | 12 | 0.917 | 1.000 | 0.917 | 1.000 | 1.000 | 0 |
 
-Un acierto exige igualdad exacta en enums y en la lista de `missing_information`; `summary` y `justification` no se
-puntúan por similitud de texto libre. La ausencia o presencia de cada concepto de `missing_information` se compara
-como lista exacta; en el caso 8 se esperan literalmente latencia observada, porcentaje de peticiones afectadas,
-momento en que ocurre, identificador de correlación y logs o métricas disponibles. La métrica fake es un baseline de
-reglas/plumbing, no una evaluación de calidad del LLM, por lo que sus fallos frente a estas etiquetas son conocidos
-y deliberados. Para Ollama, con el runtime ya disponible:
+Además de la accuracy, el JSON incluye:
+
+- `category_macro_f1`, `severity_macro_f1` y `priority_macro_f1`.
+- `per_class`: precisión, recall, F1 y soporte por clase.
+- `confusion_matrix`: matriz esperado × predicho por campo.
+- `missing_information_precision`, `missing_information_recall` y `missing_information_f1` en micro.
+- `latency_ms_p50` y `latency_ms_p95`.
+- `confidence_calibration`: para cada nivel (`low`, `medium`, `high`), número de casos, casos totalmente correctos y
+  accuracy. Sirve para comprobar si la confianza declarada se corresponde con los aciertos reales.
+- `errors_by_category`: número de fallos agrupados por la categoría esperada, para localizar qué clases concentran el
+  error.
+
+La calibración actual del baseline es coherente: en desarrollo, `high` acierta 22/23 (0.957) y `medium` 2/2; `low`
+acierta 0/3, lo que indica que las reglas ya marcan como dudosos los casos que fallan. En holdout, `high` acierta 9/10
+(0.900) y `medium` 2/2. El error de holdout se concentra en `configuration`, por la confusión ya descrita con la señal
+de bug.
+
+Un acierto de enum exige igualdad exacta. `missing_information` se sigue comparando como lista exacta para la
+accuracy, pero las métricas de precisión/recall/F1 permiten distinguir entre olvidar un concepto y añadir uno de más.
+`summary` y `justification` no se puntúan por similitud de texto libre.
+
+El 0.929 de desarrollo es optimista porque esas reglas se ajustaron con ese conjunto; el holdout es la referencia más
+honesta. Con 12 casos, un solo fallo mueve la accuracy unos 8 puntos, así que los resultados deben leerse como una
+señal de robustez del baseline, no como una estimación precisa. El único fallo actual del holdout es una incidencia de
+credenciales que también contiene `error` y `falla`, y el motor prioriza la señal de bug. Para Ollama, con el runtime
+ya disponible:
 
 ```powershell
 python -m app.evaluation --backend ollama
@@ -242,19 +264,26 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 
 ## Cómo explicarlo en entrevista
 
-> “Separé el caso de uso de análisis del proveedor mediante `IncidentAnalyzer`: el fake da un baseline reproducible
-> y Ollama es un adaptador opcional. La propuesta se persiste separada de la revisión humana, así puedo auditar qué
-> sugirió el sistema y qué cambió la persona. Medí exactitud estructurada, faltantes, errores y latencia en un dataset
-> pequeño; sé que el fake no mide calidad de LLM. Elegí SQLite para reducir el coste operativo del MVP, añadí límites,
-> errores explícitos, logs JSON sin contenido sensible y CI/Docker para que la demo sea reproducible.” 
+> “Separé el caso de uso de análisis del proveedor mediante `IncidentAnalyzer`: el fake es un baseline determinista
+> con normalización, reglas explicables y señales de impacto; Ollama es un adaptador opcional. La propuesta se persiste
+> separada de la revisión humana, así puedo auditar qué sugirió el sistema y qué cambió la persona. Medí accuracy,
+> macro-F1, precisión/recall de faltantes, matrices de confusión, calibración de confianza y percentiles de latencia en
+> un conjunto de desarrollo y otro holdout; sé que el fake no mide calidad de LLM y que el holdout es pequeño. Elegí
+> SQLite para reducir el coste operativo del MVP, añadí límites, errores explícitos, logs JSON sin contenido sensible y
+> CI/Docker para que la demo sea reproducible.” 
 
 ## Limitaciones y mejoras futuras
 
-- Dataset pequeño y etiquetado manualmente; ampliar casos y separar conjuntos de desarrollo/evaluación.
-- El FakeAnalyzer no reconoce todavía señales como severidad global, impacto por porcentaje, ventanas temporales,
-  errores de correo, configuración de PostgreSQL o síntomas de latencia descritos con vocabulario no contemplado;
-  no se ajustó para forzar una puntuación artificialmente perfecta.
-- Añadir percentiles de latencia y métricas por clase cuando exista más volumen.
+- Dataset pequeño y etiquetado manualmente; ampliar casos, revisar el acuerdo entre etiquetadores y añadir más
+  ejemplos por clase antes de interpretar las métricas como una estimación estable.
+- El `FakeAnalyzer` sigue siendo un motor de reglas, no comprensión semántica. Fallos conocidos: seguridad descrita de
+  forma indirecta (“datos de otra cuenta”), sinónimos no contemplados como “va más despacio”, elementos de UI que
+  “no aparecen” y casos de credenciales que también contienen `error`/`falla`. No se ajustó para forzar una puntuación
+  artificialmente perfecta.
+- `missing_information` se puntúa con listas exactas además de micro-F1; con pocos casos positivos, una métrica de 1.0
+  no debe interpretarse como calidad de producción.
+- Añadir análisis de errores por clase y calibración de confianza con más volumen: ya existen ambos en el JSON y en
+  `--summary`, pero con 40 casos son señales, no estimaciones estables.
 - Incorporar PostgreSQL y migraciones al requerir despliegue multiinstancia.
 - Añadir autenticación, autorización, retención y auditoría de usuarios antes de producción.
 - Añadir UI y revisión humana enriquecida después de estabilizar el contrato API.

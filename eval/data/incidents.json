@@ -140,5 +140,345 @@
       ],
       "confidence": "medium"
     }
+  },
+  {
+    "id": "duplicate-charge-all-users",
+    "input": {
+      "title": "Error de cobro duplicado a todos los usuarios",
+      "description": "Al pagar se realiza un cobro duplicado a todos los usuarios.",
+      "steps_to_reproduce": "Pagar una suscripción con tarjeta.",
+      "environment": "Producción",
+      "components": ["billing", "payments"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "data-loss-when-saving",
+    "input": {
+      "title": "Riesgo de pérdida de datos al guardar",
+      "description": "Al guardar el formulario se produce un fallo y se pierden datos de forma permanente.",
+      "steps_to_reproduce": "Editar el formulario y pulsar Guardar.",
+      "environment": "Producción",
+      "components": ["backend", "database"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "dark-mode-request",
+    "input": {
+      "title": "Solicitud de modo oscuro",
+      "description": "Se solicita añadir un tema oscuro a la interfaz.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["frontend"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "bulk-delete-request",
+    "input": {
+      "title": "Solicitud de borrado masivo",
+      "description": "Se solicita permitir el borrado masivo de registros.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["frontend", "backend"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "readme-outdated",
+    "input": {
+      "title": "README desactualizado",
+      "description": "El README describe una versión anterior del proyecto.",
+      "steps_to_reproduce": "Leer el README.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "incomplete-install-guide",
+    "input": {
+      "title": "Guía de instalación incompleta",
+      "description": "La guía no incluye los pasos necesarios para la instalación local.",
+      "steps_to_reproduce": "Seguir la guía desde el principio.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "wrong-port-configuration",
+    "input": {
+      "title": "La aplicación no conecta tras cambiar el puerto",
+      "description": "La aplicación no conecta con la base de datos tras cambiar el puerto en la configuración.",
+      "steps_to_reproduce": "Cambiar el puerto y arrancar la aplicación.",
+      "environment": "Staging",
+      "components": ["backend", "configuration"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "redis-timeout-configuration",
+    "input": {
+      "title": "Timeout de conexión a Redis",
+      "description": "La conexión a Redis falla por una configuración incorrecta.",
+      "steps_to_reproduce": "Arrancar la aplicación con la configuración actual.",
+      "environment": "Staging",
+      "components": ["backend", "cache"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "growing-memory-usage",
+    "input": {
+      "title": "Consumo de memoria creciente",
+      "description": "El consumo de memoria crece hasta 4 GB y la aplicación tarda más de 30 segundos en responder.",
+      "steps_to_reproduce": "Dejar la aplicación en ejecución durante varias horas.",
+      "environment": "Producción",
+      "components": ["backend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "report-generation-timeout",
+    "input": {
+      "title": "Generación de informes demasiado lenta",
+      "description": "La generación de informes tarda más de 60 segundos y termina en timeout.",
+      "steps_to_reproduce": "Solicitar el informe mensual completo.",
+      "environment": "Producción",
+      "components": ["reports", "backend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "login-500-all-users",
+    "input": {
+      "title": "Error 500 al iniciar sesión",
+      "description": "El inicio de sesión devuelve un error 500 para todos los usuarios.",
+      "steps_to_reproduce": "Abrir la pantalla de acceso e introducir credenciales válidas.",
+      "environment": "Producción",
+      "components": ["auth", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "corrupt-export-files",
+    "input": {
+      "title": "Archivos corruptos al exportar",
+      "description": "La exportación genera archivos corruptos y se produce una pérdida de datos.",
+      "steps_to_reproduce": "Exportar el listado completo y abrir el archivo.",
+      "environment": "Producción",
+      "components": ["reports", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "api-pagination-request",
+    "input": {
+      "title": "Solicitud de paginación en la API",
+      "description": "Se solicita añadir paginación a los listados de la API.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["api"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "email-notifications-request",
+    "input": {
+      "title": "Solicitud de notificaciones por correo",
+      "description": "Se solicita permitir notificaciones por correo al cerrar una incidencia.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["notifications"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "outdated-documentation-example",
+    "input": {
+      "title": "Ejemplo obsoleto en la documentación",
+      "description": "La documentación de la API muestra un ejemplo obsoleto.",
+      "steps_to_reproduce": "Leer la documentación de la API.",
+      "environment": "Desarrollo",
+      "components": ["docs", "api"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "cors-blocks-requests",
+    "input": {
+      "title": "CORS impide las peticiones",
+      "description": "El navegador no conecta con la API por una configuración CORS incorrecta.",
+      "steps_to_reproduce": "Abrir la aplicación web y llamar a la API.",
+      "environment": "Staging",
+      "components": ["frontend", "api"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "cross-account-data-leak",
+    "input": {
+      "title": "Usuarios ven datos de otra cuenta",
+      "description": "Al abrir el panel, algunos usuarios ven datos de otra cuenta.",
+      "steps_to_reproduce": "Iniciar sesión con dos cuentas y abrir el panel.",
+      "environment": "Producción",
+      "components": ["frontend", "auth"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "editor-changes-not-saved",
+    "input": {
+      "title": "Los cambios del editor no se guardan",
+      "description": "Al cerrar la pestaña se pierden los cambios del editor.",
+      "steps_to_reproduce": "Editar un documento, cerrar la pestaña y volver a abrirlo.",
+      "environment": "Producción",
+      "components": ["editor", "frontend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "reports-slow-on-mondays",
+    "input": {
+      "title": "Los informes van más despacio los lunes",
+      "description": "Los informes van más despacio los lunes por la mañana.",
+      "steps_to_reproduce": "Abrir los informes un lunes por la mañana.",
+      "environment": "Producción",
+      "components": ["reports"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "missing-export-button",
+    "input": {
+      "title": "No aparece el botón de exportar",
+      "description": "El botón para exportar no aparece en el listado.",
+      "steps_to_reproduce": "Abrir el listado de resultados.",
+      "environment": "Producción",
+      "components": ["frontend", "reports"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
   }
 ]

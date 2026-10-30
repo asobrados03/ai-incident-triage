@@ -1,0 +1,218 @@
+[
+  {
+    "id": "checkout-button-no-response",
+    "input": {
+      "title": "El botón de pago no responde",
+      "description": "Al pulsar Pagar el botón no responde y afecta a todos los usuarios.",
+      "steps_to_reproduce": "Añadir un producto y pulsar Pagar.",
+      "environment": "Producción",
+      "components": ["checkout", "frontend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "urgent",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "database-migration-configuration",
+    "input": {
+      "title": "La migración falla por configuración incorrecta",
+      "description": "La base de datos no conecta por una configuración incorrecta de la variable de entorno.",
+      "steps_to_reproduce": "Ejecutar la migración en staging.",
+      "environment": "Staging",
+      "components": ["backend", "database"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "documentation-guide-typo",
+    "input": {
+      "title": "Errata en la guía de instalación",
+      "description": "La guía contiene una errata en el ejemplo de instalación.",
+      "steps_to_reproduce": "Leer la guía de instalación.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "api-500-intermittent",
+    "input": {
+      "title": "Errores 500 intermitentes en la API",
+      "description": "La API devuelve errores 500 de forma intermitente a algunos usuarios.",
+      "steps_to_reproduce": "Llamar al endpoint de pedidos en distintos momentos.",
+      "environment": "Producción",
+      "components": ["api", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [
+        "latencia observada",
+        "porcentaje de peticiones afectadas",
+        "momento en que ocurre",
+        "identificador de correlación",
+        "logs o métricas disponibles"
+      ],
+      "confidence": "medium"
+    }
+  },
+  {
+    "id": "slack-notifications-request",
+    "input": {
+      "title": "Solicitud de notificaciones en Slack",
+      "description": "Se solicita añadir notificaciones en Slack al crear una incidencia.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["notifications"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "outdated-manual-screenshots",
+    "input": {
+      "title": "Capturas desactualizadas en el manual",
+      "description": "Las capturas del manual están desactualizadas.",
+      "steps_to_reproduce": "Abrir el manual de usuario.",
+      "environment": "Desarrollo",
+      "components": ["docs"]
+    },
+    "expected": {
+      "category": "documentation",
+      "severity": "low",
+      "priority": "medium",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "s3-credentials-configuration",
+    "input": {
+      "title": "Error de acceso a S3 por credenciales",
+      "description": "El acceso a S3 falla por una configuración incorrecta de las credenciales.",
+      "steps_to_reproduce": "Subir un archivo desde la aplicación.",
+      "environment": "Staging",
+      "components": ["backend", "storage"]
+    },
+    "expected": {
+      "category": "configuration",
+      "severity": "medium",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "dashboard-load-time",
+    "input": {
+      "title": "El dashboard tarda en cargar",
+      "description": "El dashboard tarda 15 segundos en cargar con datos reales.",
+      "steps_to_reproduce": "Abrir el dashboard con datos de producción.",
+      "environment": "Producción",
+      "components": ["frontend", "backend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "export-missing-rows",
+    "input": {
+      "title": "La exportación omite filas",
+      "description": "La exportación omite filas por un error y los usuarios no reciben los datos completos.",
+      "steps_to_reproduce": "Exportar el listado completo y comparar el número de filas.",
+      "environment": "Producción",
+      "components": ["reports", "backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "high",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "crash-on-startup",
+    "input": {
+      "title": "La aplicación se cierra al arrancar",
+      "description": "La aplicación se cierra al arrancar en producción.",
+      "steps_to_reproduce": "Arrancar la aplicación.",
+      "environment": "Producción",
+      "components": ["backend"]
+    },
+    "expected": {
+      "category": "bug",
+      "severity": "critical",
+      "priority": "high",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "two-factor-request",
+    "input": {
+      "title": "Solicitud de autenticación de dos factores",
+      "description": "Se solicita añadir autenticación de dos factores.",
+      "steps_to_reproduce": "N/A",
+      "environment": "Producción",
+      "components": ["auth"]
+    },
+    "expected": {
+      "category": "feature",
+      "severity": "low",
+      "priority": "low",
+      "missing_information": [],
+      "confidence": "high"
+    }
+  },
+  {
+    "id": "slow-queries-without-metrics",
+    "input": {
+      "title": "Consultas lentas sin métricas",
+      "description": "Las consultas son algo lentas, aunque no hay métricas para medir el impacto.",
+      "steps_to_reproduce": "Ejecutar las consultas habituales del panel.",
+      "environment": "Producción",
+      "components": ["database", "backend"]
+    },
+    "expected": {
+      "category": "performance",
+      "severity": "medium",
+      "priority": "medium",
+      "missing_information": [
+        "latencia observada",
+        "porcentaje de peticiones afectadas",
+        "momento en que ocurre",
+        "identificador de correlación",
+        "logs o métricas disponibles"
+      ],
+      "confidence": "medium"
+    }
+  }
+]
