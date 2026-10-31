@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -17,6 +18,9 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3.5:4b"
     ollama_timeout_seconds: float = 180.0
+    api_keys: SecretStr = SecretStr("")
+    retention_days: int = 90
+    audit_retention_days: int = 365
 
     model_config = SettingsConfigDict(
         env_prefix="",
@@ -40,6 +44,15 @@ def validate_runtime_settings(settings: Settings) -> None:
             raise ValueError("OLLAMA_MODEL must not be empty")
         if settings.ollama_timeout_seconds <= 0:
             raise ValueError("OLLAMA_TIMEOUT_SECONDS must be greater than zero")
+    if settings.retention_days <= 0:
+        raise ValueError("RETENTION_DAYS must be greater than zero")
+    if settings.audit_retention_days <= 0:
+        raise ValueError("AUDIT_RETENTION_DAYS must be greater than zero")
+
+    # Import local para evitar un ciclo de imports entre config y auth.
+    from app.auth import parse_api_keys
+
+    parse_api_keys(settings.api_keys)
 
 
 @lru_cache

@@ -2,7 +2,8 @@
 
 API pequeña para registrar incidencias, generar una propuesta de triaje y permitir que una persona la acepte o la
 corrija. El proyecto está pensado como MVP demostrable para portfolio y entrevista: mantiene separadas la entrada,
-el análisis, la persistencia y la revisión humana, sin añadir todavía UI, autenticación, RAG ni agentes.
+el análisis, la persistencia y la revisión humana, y añade autenticación por API key, autorización por roles,
+auditoría y retención de datos sin incorporar todavía UI, RAG ni agentes.
 
 ## Qué resuelve
 
@@ -12,6 +13,9 @@ el análisis, la persistencia y la revisión humana, sin añadir todavía UI, au
 4. Guarda la propuesta estructurada (`category`, `severity`, `priority`, faltantes y confianza).
 5. Permite aceptar o corregir la propuesta con `PATCH /incidents/{id}/triage`.
 6. Conserva la propuesta original y almacena los valores finales revisados.
+7. Protege la API con API keys y roles `reader`, `writer` y `admin`.
+8. Registra las acciones relevantes en una auditoría consultable sin contenido sensible.
+9. Purga incidencias y auditoría antiguas con dry-run, ejecución administrativa y traza del resultado.
 
 Estados principales: `created → analyzing → analyzed → reviewed`. Si el análisis falla, el estado es
 `analysis_failed`.
@@ -20,7 +24,8 @@ Estados principales: `created → analyzing → analyzed → reviewed`. Si el an
 
 ```mermaid
 flowchart LR
-    Client[Cliente HTTP / demo PowerShell] --> API[FastAPI routers]
+    Client[Cliente HTTP / demo PowerShell] --> Auth[X-API-Key + roles]
+    Auth --> API[FastAPI routers]
     API --> Service[IncidentService]
     Service --> Repo[IncidentRepository]
     Repo --> SQLite[(SQLite incidents.db)]
@@ -32,14 +37,22 @@ flowchart LR
     Review --> Service
     Repo --> Triage[(triage_results)]
     Repo --> Reviews[(triage_reviews)]
+    Service --> Audit[AuditRepository]
+    Audit --> AuditLogs[(audit_logs)]
+    API --> Retention[POST /admin/retention]
+    Retention --> RetentionService[RetentionService]
+    RetentionService --> Repo
+    RetentionService --> Audit
 ```
 
 Capas:
 
 - `app/main.py`: rutas HTTP, dependencias y traducción de errores a códigos HTTP.
+- `app/auth.py`: roles, almacén de API keys y dependencias de autenticación/autorización.
 - `app/service.py`: transiciones de estado y casos de uso.
-- `app/repository.py`: consultas y persistencia SQLAlchemy.
-- `app/orm_models.py`: tablas `incidents`, `triage_results` y `triage_reviews`.
+- `app/repository.py`: consultas y persistencia SQLAlchemy, incluida la auditoría y la retención.
+- `app/orm_models.py`: tablas `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
+- `app/retention.py`: cálculo de cortes, purga controlada y CLI `python -m app.retention`.
 - `app/analyzer.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
 - `app/schemas.py`: contratos Pydantic públicos.
 - `app/evaluation.py`: evaluación offline independiente de FastAPI.
@@ -68,12 +81,46 @@ absoluta en la raíz del proyecto para no depender del directorio desde el que s
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Runtime local de Ollama. |
 | `OLLAMA_MODEL` | `qwen3.5:4b` | Modelo Ollama. |
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Timeout finito del adaptador. |
+| `API_KEYS` | vacío | Claves y roles con formato `name:role:key,...`; vacío deshabilita auth. |
+| `RETENTION_DAYS` | `90` | Antigüedad mínima de incidencias antes de poder purgarlas. |
+| `AUDIT_RETENTION_DAYS` | `365` | Antigüedad mínima de registros de auditoría antes de purgarlos. |
 
-El arranque valida backend, URL HTTP(S), modelo no vacío y timeout positivo. `GET /health` no llama a Ollama ni
-expone URL, modelo o secretos:
+El arranque valida backend, URL HTTP(S), modelo no vacío, timeout positivo, días de retención positivos y el formato
+de `API_KEYS`. `GET /health` es público, no llama a Ollama ni expone URL, modelo, claves o secretos:
 
 ```json
 {"status":"ok","analyzer_backend":"fake"}
+```
+
+## Autenticación y autorización
+
+La autenticación se activa definiendo `API_KEYS`. El formato es una lista separada por comas con entradas
+`nombre:rol:clave`:
+
+```powershell
+$env:API_KEYS = "soporte:writer:clave-de-soporte-0001,auditor:reader:clave-de-auditor-0001,admin:admin:clave-de-admin-0001"
+uvicorn app.main:app --reload
+```
+
+- La clave debe tener al menos 16 caracteres. Los nombres y las claves no pueden repetirse.
+- Los roles son jerárquicos: `reader < writer < admin`.
+- El cliente envía la clave en la cabecera `X-API-Key`.
+- Sin cabecera o con una clave inválida la API devuelve `401`; con un rol insuficiente devuelve `403`.
+- `GET /health` permanece público para sondas de disponibilidad.
+- Si `API_KEYS` está vacío, la autenticación se deshabilita y se permite todo el acceso. Es el modo por defecto
+  para desarrollo local, tests y demo.
+- Las claves no se incluyen en respuestas, logs ni auditoría. Las comparaciones usan hashes y
+  `secrets.compare_digest`.
+
+| Rol | Permisos |
+|---|---|
+| `reader` | `GET /incidents/{id}` |
+| `writer` | Todo lo de `reader` más `POST /incidents`, `POST /incidents/{id}/analysis` y `PATCH /incidents/{id}/triage` |
+| `admin` | Todo lo anterior más `GET /audit` y `POST /admin/retention` |
+
+```powershell
+curl.exe -i http://127.0.0.1:8000/incidents/{incident_id} `
+  -H "X-API-Key: $env:READER_API_KEY"
 ```
 
 ## API y ejemplos
@@ -138,7 +185,91 @@ Un comentario solo acepta la propuesta sin cambios. Una petición vacía, una in
 duplicada devuelve `422`/`409` según el caso.
 
 Límites relevantes: título 1–200 caracteres, descripción 1–5000, comentarios 2000, componentes y listas de triaje
-máximo 20 elementos. Los campos desconocidos se rechazan.
+máximo 20 elementos. Los campos desconocidos se rechazan. Si la autenticación está activa, añade la cabecera
+`X-API-Key` a todas las peticiones salvo `GET /health`.
+
+## Auditoría
+
+Las acciones relevantes se guardan en la tabla `audit_logs` con actor, rol, acción, tipo e identificador del recurso
+y metadatos operativos. No se guardan títulos, descripciones, comentarios, prompts ni claves.
+
+| Acción | Cuándo se registra |
+|---|---|
+| `incident.create` | Se crea una incidencia. |
+| `incident.analyze` | El análisis termina correctamente. |
+| `incident.analysis_failed` | El análisis falla; incluye el tipo de error, no su mensaje. |
+| `incident.review` | Se acepta o corrige el triaje; incluye campos cambiados y si hubo comentario. |
+| `retention.run` | Se ejecuta un dry-run o una purga; incluye cortes y recuentos. |
+
+`GET /audit` es solo para `admin` y admite `limit` (1–200, default 50), `offset`, `action`, `actor`,
+`resource_type` y `resource_id`:
+
+```powershell
+curl.exe -i "http://127.0.0.1:8000/audit?action=incident.review&limit=20" `
+  -H "X-API-Key: $env:ADMIN_API_KEY"
+```
+
+```json
+{
+  "items": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "created_at": "2026-10-31T12:00:00+00:00",
+      "actor": "soporte",
+      "role": "writer",
+      "action": "incident.review",
+      "resource_type": "incident",
+      "resource_id": "00000000-0000-0000-0000-000000000001",
+      "details": {"status": "reviewed", "changed_fields": ["severity"], "has_comment": true}
+    }
+  ],
+  "total": 1,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+## Retención de datos
+
+La retención elimina datos antiguos por antigüedad, nunca por estado ni por contenido:
+
+- `RETENTION_DAYS` define el corte de incidencias. Se borran primero sus `triage_reviews`, después sus
+  `triage_results` y por último las incidencias. El cutoff se calcula con UTC.
+- `AUDIT_RETENTION_DAYS` define el corte de `audit_logs`.
+- Tanto la CLI como el endpoint hacen **dry-run por defecto**: calculan cuántas filas coinciden sin borrar nada.
+- Cada ejecución, incluido el dry-run, se registra en auditoría como `retention.run`.
+
+`POST /admin/retention` es solo para `admin` y acepta días alternativos para una ejecución concreta:
+
+```powershell
+curl.exe -i -X POST http://127.0.0.1:8000/admin/retention `
+  -H "X-API-Key: $env:ADMIN_API_KEY" `
+  -H "Content-Type: application/json" `
+  --data-raw '{"dry_run":true,"incidents_days":90,"audit_days":365}'
+```
+
+```json
+{
+  "dry_run": true,
+  "incident_cutoff": "2026-08-02T12:00:00+00:00",
+  "audit_cutoff": "2025-10-31T12:00:00+00:00",
+  "incidents_matched": 3,
+  "triage_results_matched": 3,
+  "triage_reviews_matched": 2,
+  "audit_logs_matched": 10
+}
+```
+
+Para ejecutarla fuera de la API:
+
+```powershell
+python -m app.retention
+python -m app.retention --incidents-days 30 --audit-days 180
+python -m app.retention --apply
+```
+
+`*_matched` indica las filas seleccionadas por el corte; con `--apply` o `"dry_run": false` son las filas
+eliminadas. La CLI imprime el resultado en JSON y usa el actor `retention-cli` con rol `admin`.
 
 ## FakeAnalyzer y Ollama
 
@@ -326,11 +457,15 @@ Con la API arrancada en otra terminal:
 ```
 
 El script ejecuta health → create → analysis → GET → review, no contiene secretos y solo usa `curl.exe` y herramientas
-incluidas en PowerShell. También acepta una URL alternativa:
+incluidas en PowerShell. También acepta una URL alternativa y una API key opcional:
 
 ```powershell
 .\scripts\demo.ps1 -BaseUrl "http://localhost:8000"
+.\scripts\demo.ps1 -ApiKey $env:WRITER_API_KEY
 ```
+
+La clave solo se usa para construir la cabecera `X-API-Key`; no se imprime ni se escribe en disco. Con la
+autenticación deshabilitada (`API_KEYS` vacío) el script funciona sin `-ApiKey`.
 
 ## Docker y CI
 
@@ -342,7 +477,8 @@ docker run --rm -p 8000:8000 -v "${PWD}/data:/data" `
 
 La imagen no incluye `incidents.db`, tests, `.venv`, artefactos locales ni secretos. El contenedor no inicia Ollama:
 debe ejecutarse aparte. GitHub Actions en `.github/workflows/ci.yml` instala el proyecto, ejecuta `python -m pytest -q`
-y valida el Dockerfile. PostgreSQL no se incorpora todavía: SQLite cubre el MVP local y evita añadir operación,
+y valida el Dockerfile. Si activas la autenticación, inyecta `API_KEYS` con `--env-file` o un gestor de secretos; no
+la incluyas en la imagen. PostgreSQL no se incorpora todavía: SQLite cubre el MVP local y evita añadir operación,
 driver y migraciones antes de necesitar despliegue multiinstancia.
 
 ## Decisiones, costes y seguridad
@@ -355,6 +491,14 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 - **Sin RAG/agentes:** no son necesarios para clasificar el contrato actual y aumentarían superficie y coste.
 - **Validación estructurada:** Pydantic rechaza respuestas incompletas; se evita puntuar o persistir texto no validado.
 - **Revisión humana:** la tabla `triage_reviews` conserva el original y permite medir correcciones futuras.
+- **Autenticación y autorización:** `API_KEYS` se valida al arrancar; las claves se comparan por hash con
+  `secrets.compare_digest` y nunca se devuelven, registran ni auditan. Los roles son jerárquicos y las rutas
+  administrativas quedan restringidas a `admin`. Vaciar `API_KEYS` deshabilita auth solo para desarrollo local.
+- **Auditoría:** `audit_logs` registra actor, rol, acción, recurso y metadatos operativos. Se evita guardar texto
+  libre de incidencias, comentarios, prompts o claves. Si la escritura de auditoría falla durante un análisis, el
+  error original se conserva y el fallo de auditoría se registra en el log.
+- **Retención:** los cortes se calculan en UTC, la purga es explícita, auditable y hace dry-run por defecto; no se
+  borra por estado ni por contenido. La API y la CLI comparten el mismo servicio.
 - **Coste:** FakeAnalyzer + SQLite no requieren servicios externos; Ollama consume CPU/GPU, memoria, almacenamiento y
   tiempo local; se evitan costes de API externa en el MVP. El coste real depende del hardware y del modelo.
 - **Seguridad:** no hay credenciales en el código; health y errores no exponen secretos; valida límites y configuración;
@@ -369,7 +513,8 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 > desarrollo, un holdout original, un conjunto de regresión y un holdout ciego escrito después de los cambios; además
 > puedo comparar fake frente a Ollama con deltas por caso, métrica y latencia. Sé que el fake no mide calidad de LLM y
 > que 12 casos son una muestra pequeña. Elegí SQLite para reducir el coste operativo del MVP, añadí límites, errores
-> explícitos, logs JSON sin contenido sensible y CI/Docker para que la demo sea reproducible.”
+> explícitos, logs JSON sin contenido sensible, API keys con roles jerárquicos, auditoría sin datos sensibles,
+> retención con dry-run y CI/Docker para que la demo sea reproducible.”
 
 ## Limitaciones y mejoras futuras
 
@@ -386,6 +531,12 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
   no debe interpretarse como calidad de producción.
 - Añadir análisis de errores por clase y calibración de confianza con más volumen: ya existen ambos en el JSON y en
   `--summary`, pero con 64 casos repartidos en varios conjuntos siguen siendo señales, no estimaciones estables.
-- Incorporar PostgreSQL y migraciones al requerir despliegue multiinstancia.
-- Añadir autenticación, autorización, retención y auditoría de usuarios antes de producción.
+- Incorporar PostgreSQL y migraciones al requerir despliegue multiinstancia. `create_all` no sustituye migraciones
+  cuando cambien tablas existentes.
+- La autenticación es estática por API key en variables de entorno: falta rotación, caducidad, gestión por usuario,
+  rate limiting y TLS terminado en un proxy. Las claves deben provisionarse fuera del repositorio.
+- La auditoría vive en la misma SQLite y no es un sumidero inmutable externo. Si la base de datos no está disponible,
+  tampoco lo está la auditoría.
+- La retención hace borrado físico y no conoce copias de seguridad, bloqueos legales ni periodos de gracia. La
+  ejecución periódica debe programarse fuera de la API (cron, Task Scheduler o similar).
 - Añadir UI y revisión humana enriquecida después de estabilizar el contrato API.

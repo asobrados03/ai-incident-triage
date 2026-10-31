@@ -1,8 +1,14 @@
 param(
-    [string]$BaseUrl = "http://127.0.0.1:8000"
+    [string]$BaseUrl = "http://127.0.0.1:8000",
+    [string]$ApiKey = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+$auth = @()
+if ($ApiKey) {
+    $auth = @("-H", "X-API-Key: $ApiKey")
+}
 
 Write-Host "1. Health"
 curl.exe -sS "$BaseUrl/health"
@@ -18,23 +24,23 @@ $payload = @{
     components = @("frontend")
 } | ConvertTo-Json -Compress
 
-$created = curl.exe -sS -X POST "$BaseUrl/incidents" `
+$created = curl.exe -sS @auth -X POST "$BaseUrl/incidents" `
     -H "Content-Type: application/json" `
     --data-raw $payload | ConvertFrom-Json
 $incidentId = $created.id
 $created | ConvertTo-Json
 
 Write-Host "`n3. Analyze"
-$analyzed = curl.exe -sS -X POST "$BaseUrl/incidents/$incidentId/analysis" |
+$analyzed = curl.exe -sS @auth -X POST "$BaseUrl/incidents/$incidentId/analysis" |
     ConvertFrom-Json
 $analyzed | ConvertTo-Json -Depth 10
 
 Write-Host "`n4. Get incident"
-curl.exe -sS "$BaseUrl/incidents/$incidentId"
+curl.exe -sS @auth "$BaseUrl/incidents/$incidentId"
 
 Write-Host "`n5. Human review"
 $review = '{"severity":"high","review_comment":"Impacto confirmado en la revisión."}'
-$reviewed = curl.exe -sS -X PATCH "$BaseUrl/incidents/$incidentId/triage" `
+$reviewed = curl.exe -sS @auth -X PATCH "$BaseUrl/incidents/$incidentId/triage" `
     -H "Content-Type: application/json" `
     --data-raw $review | ConvertFrom-Json
 $reviewed | ConvertTo-Json -Depth 10

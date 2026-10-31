@@ -2,10 +2,11 @@ from contextlib import asynccontextmanager
 import logging
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.config import get_settings, validate_runtime_settings
+from app.auth import Principal, Role, require_role
+from app.config import Settings, get_settings, validate_runtime_settings
 from app.database import create_tables, engine, get_db_session
 from app.logging_config import configure_logging
 from app.analyzer import (
@@ -16,8 +17,16 @@ from app.analyzer import (
     FakeAnalyzer,
     OllamaAnalyzer,
 )
-from app.repository import IncidentRepository
-from app.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest
+from app.repository import AuditRepository, IncidentRepository, RetentionRepository
+from app.retention import RetentionService
+from app.schemas import (
+    AuditLogPage,
+    IncidentCreate,
+    IncidentResponse,
+    RetentionRunRequest,
+    RetentionRunResponse,
+    TriageReviewRequest,
+)
 from app.service import (
     IncidentAnalysisConflictError,
     IncidentNotFoundError,
@@ -46,23 +55,48 @@ app = FastAPI(
 
 def get_incident_service(
     session: Session = Depends(get_db_session),
+    runtime_settings: Settings = Depends(get_settings),
 ) -> IncidentService:
-    if settings.analyzer_backend == "fake":
+    if runtime_settings.analyzer_backend == "fake":
         analyzer = FakeAnalyzer()
-    elif settings.analyzer_backend == "ollama":
+    elif runtime_settings.analyzer_backend == "ollama":
         analyzer = OllamaAnalyzer()
     else:
         raise AnalyzerConfigurationError(
-            f"Unsupported analyzer backend: {settings.analyzer_backend}",
+            f"Unsupported analyzer backend: {runtime_settings.analyzer_backend}",
         )
-    return IncidentService(IncidentRepository(session), analyzer)
+    return IncidentService(
+        IncidentRepository(session),
+        analyzer,
+        AuditRepository(session),
+    )
+
+
+def get_audit_repository(
+    session: Session = Depends(get_db_session),
+) -> AuditRepository:
+    return AuditRepository(session)
+
+
+def get_retention_service(
+    session: Session = Depends(get_db_session),
+    runtime_settings: Settings = Depends(get_settings),
+) -> RetentionService:
+    return RetentionService(
+        RetentionRepository(session),
+        AuditRepository(session),
+        runtime_settings.retention_days,
+        runtime_settings.audit_retention_days,
+    )
 
 
 @app.get("/health")
-def health() -> dict[str, str]:
+def health(
+    runtime_settings: Settings = Depends(get_settings),
+) -> dict[str, str]:
     return {
         "status": "ok",
-        "analyzer_backend": settings.analyzer_backend,
+        "analyzer_backend": runtime_settings.analyzer_backend,
     }
 
 
@@ -73,14 +107,16 @@ def health() -> dict[str, str]:
 )
 def create_incident(
     incident: IncidentCreate,
+    principal: Principal = Depends(require_role(Role.WRITER)),
     incident_service: IncidentService = Depends(get_incident_service),
 ) -> IncidentResponse:
-    return incident_service.create(incident)
+    return incident_service.create(incident, actor=principal)
 
 
 @app.get("/incidents/{incident_id}", response_model=IncidentResponse)
 def get_incident(
     incident_id: UUID,
+    _principal: Principal = Depends(require_role(Role.READER)),
     incident_service: IncidentService = Depends(get_incident_service),
 ) -> IncidentResponse:
     incident = incident_service.get(incident_id)
@@ -98,10 +134,11 @@ def get_incident(
 )
 def analyze_incident(
     incident_id: UUID,
+    principal: Principal = Depends(require_role(Role.WRITER)),
     incident_service: IncidentService = Depends(get_incident_service),
 ) -> IncidentResponse:
     try:
-        return incident_service.analyze(incident_id)
+        return incident_service.analyze(incident_id, actor=principal)
     except IncidentNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -141,10 +178,11 @@ def analyze_incident(
 def review_incident_triage(
     incident_id: UUID,
     review: TriageReviewRequest,
+    principal: Principal = Depends(require_role(Role.WRITER)),
     incident_service: IncidentService = Depends(get_incident_service),
 ) -> IncidentResponse:
     try:
-        return incident_service.review(incident_id, review)
+        return incident_service.review(incident_id, review, actor=principal)
     except IncidentNotFoundError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -155,3 +193,44 @@ def review_incident_triage(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(error),
         ) from error
+
+
+@app.get("/audit", response_model=AuditLogPage)
+def list_audit_logs(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    action: str | None = Query(default=None, max_length=100),
+    actor: str | None = Query(default=None, max_length=100),
+    resource_type: str | None = Query(default=None, max_length=50),
+    resource_id: str | None = Query(default=None, max_length=100),
+    _principal: Principal = Depends(require_role(Role.ADMIN)),
+    audit_repository: AuditRepository = Depends(get_audit_repository),
+) -> AuditLogPage:
+    items, total = audit_repository.list(
+        limit=limit,
+        offset=offset,
+        action=action,
+        actor=actor,
+        resource_type=resource_type,
+        resource_id=resource_id,
+    )
+    return AuditLogPage(
+        items=items,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@app.post("/admin/retention", response_model=RetentionRunResponse)
+def run_retention(
+    request: RetentionRunRequest,
+    principal: Principal = Depends(require_role(Role.ADMIN)),
+    retention_service: RetentionService = Depends(get_retention_service),
+) -> RetentionRunResponse:
+    return retention_service.run(
+        actor=principal,
+        dry_run=request.dry_run,
+        incidents_days=request.incidents_days,
+        audit_days=request.audit_days,
+    )

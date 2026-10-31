@@ -1,8 +1,10 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.auth import Role
 from app.models import (
     AnalysisConfidence,
     IncidentCategory,
@@ -76,3 +78,39 @@ class IncidentResponse(IncidentCreate):
     status: IncidentStatus
     created_at: datetime
     triage: TriageResultResponse | None = None
+
+
+class AuditLogResponse(BaseModel):
+    id: UUID
+    created_at: datetime
+    actor: str
+    role: Role
+    action: str
+    resource_type: str
+    resource_id: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class AuditLogPage(BaseModel):
+    items: list[AuditLogResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class RetentionRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    dry_run: bool = True
+    incidents_days: int | None = Field(default=None, ge=1, le=36500)
+    audit_days: int | None = Field(default=None, ge=1, le=36500)
+
+
+class RetentionRunResponse(BaseModel):
+    dry_run: bool
+    incident_cutoff: datetime
+    audit_cutoff: datetime
+    incidents_matched: int
+    triage_results_matched: int
+    triage_reviews_matched: int
+    audit_logs_matched: int

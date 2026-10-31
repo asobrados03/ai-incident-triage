@@ -61,3 +61,20 @@ class TriageReviewORM(Base):
     review_comment: Mapped[str | None] = mapped_column(String(2000))
     reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source: Mapped[str] = mapped_column(String(50), nullable=False, default="human")
+
+
+class AuditLogORM(Base):
+    __tablename__ = "audit_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
+    actor: Mapped[str] = mapped_column(String(100), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    resource_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    resource_id: Mapped[str | None] = mapped_column(String(100))
+    details: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
