@@ -366,6 +366,11 @@ def test_compare_outcomes_serializes_metrics_and_case_groups() -> None:
     assert payload["cases"]["improved"] == ["improves"]
     assert payload["cases"]["worsened"] == ["worsens"]
     assert payload["deltas"]["category_accuracy"] == 0.0
+    detail = payload["cases"]["detail"]["improves"]
+    assert detail["expected"]["category"] == "bug"
+    assert detail["baseline"]["actual"]["category"] == "feature"
+    assert detail["candidate"]["actual"]["category"] == "bug"
+    assert detail["candidate"]["mismatches"] == []
 
 
 def test_print_comparison_reports_deltas_and_changed_cases(capsys) -> None:

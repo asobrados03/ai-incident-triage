@@ -1,0 +1,1074 @@
+{
+  "baseline": {
+    "backend": "fake",
+    "metrics": {
+      "total": 12,
+      "valid_responses": 12,
+      "category_accuracy": 1.0,
+      "severity_accuracy": 0.9166666666666666,
+      "priority_accuracy": 0.9166666666666666,
+      "missing_information_accuracy": 1.0,
+      "confidence_accuracy": 0.9166666666666666,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms_total": 4.040700005134568,
+      "latency_ms_average": 0.3367250004278806,
+      "latency_ms_p50": 0.14350000128615648,
+      "latency_ms_p95": 1.2324249990342637,
+      "category_macro_f1": 1.0,
+      "severity_macro_f1": 0.8888888888888888,
+      "priority_macro_f1": 0.9142857142857143,
+      "missing_information_precision": 1.0,
+      "missing_information_recall": 1.0,
+      "missing_information_f1": 1.0,
+      "per_class": {
+        "category": {
+          "bug": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 5
+          },
+          "feature": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          },
+          "documentation": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1
+          },
+          "configuration": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          },
+          "performance": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 3
+          },
+          "medium": {
+            "precision": 0.8,
+            "recall": 1.0,
+            "f1": 0.888888888888889,
+            "support": 4
+          },
+          "high": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 3
+          },
+          "critical": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 2
+          }
+        },
+        "priority": {
+          "low": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          },
+          "medium": {
+            "precision": 0.75,
+            "recall": 1.0,
+            "f1": 0.8571428571428571,
+            "support": 3
+          },
+          "high": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 4
+          },
+          "urgent": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8,
+            "support": 3
+          }
+        },
+        "confidence": {
+          "low": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "medium": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "high": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 11
+          }
+        }
+      },
+      "confusion_matrix": {
+        "category": {
+          "bug": {
+            "bug": 5,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 0
+          },
+          "feature": {
+            "bug": 0,
+            "feature": 2,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 0
+          },
+          "documentation": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 1,
+            "configuration": 0,
+            "performance": 0
+          },
+          "configuration": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 2,
+            "performance": 0
+          },
+          "performance": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "low": 3,
+            "medium": 0,
+            "high": 0,
+            "critical": 0
+          },
+          "medium": {
+            "low": 0,
+            "medium": 4,
+            "high": 0,
+            "critical": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 3,
+            "critical": 0
+          },
+          "critical": {
+            "low": 0,
+            "medium": 1,
+            "high": 0,
+            "critical": 1
+          }
+        },
+        "priority": {
+          "low": {
+            "low": 2,
+            "medium": 0,
+            "high": 0,
+            "urgent": 0
+          },
+          "medium": {
+            "low": 0,
+            "medium": 3,
+            "high": 0,
+            "urgent": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 4,
+            "urgent": 0
+          },
+          "urgent": {
+            "low": 0,
+            "medium": 1,
+            "high": 0,
+            "urgent": 2
+          }
+        },
+        "confidence": {
+          "low": {
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "medium": {
+            "low": 1,
+            "medium": 0,
+            "high": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 11
+          }
+        }
+      },
+      "confidence_calibration": {
+        "low": {
+          "cases": 1,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "medium": {
+          "cases": 0,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "high": {
+          "cases": 11,
+          "fully_correct": 10,
+          "accuracy": 0.9090909090909091
+        }
+      },
+      "errors_by_category": {
+        "performance": 1,
+        "bug": 1
+      }
+    }
+  },
+  "candidate": {
+    "backend": "ollama",
+    "metrics": {
+      "total": 12,
+      "valid_responses": 12,
+      "category_accuracy": 0.8333333333333334,
+      "severity_accuracy": 0.5833333333333334,
+      "priority_accuracy": 0.4166666666666667,
+      "missing_information_accuracy": 0.08333333333333333,
+      "confidence_accuracy": 0.16666666666666666,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms_total": 224294.6704999922,
+      "latency_ms_average": 18691.22254166602,
+      "latency_ms_p50": 19167.57189999771,
+      "latency_ms_p95": 21738.7227299987,
+      "category_macro_f1": 0.8533333333333333,
+      "severity_macro_f1": 0.5857142857142857,
+      "priority_macro_f1": 0.25,
+      "missing_information_precision": 0.0,
+      "missing_information_recall": 1.0,
+      "missing_information_f1": 0.0,
+      "per_class": {
+        "category": {
+          "bug": {
+            "precision": 0.8,
+            "recall": 0.8,
+            "f1": 0.8000000000000002,
+            "support": 5
+          },
+          "feature": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          },
+          "documentation": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1
+          },
+          "configuration": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 2
+          },
+          "performance": {
+            "precision": 0.6666666666666666,
+            "recall": 1.0,
+            "f1": 0.8,
+            "support": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8,
+            "support": 3
+          },
+          "medium": {
+            "precision": 0.6666666666666666,
+            "recall": 0.5,
+            "f1": 0.5714285714285715,
+            "support": 4
+          },
+          "high": {
+            "precision": 0.5,
+            "recall": 0.6666666666666666,
+            "f1": 0.5714285714285715,
+            "support": 3
+          },
+          "critical": {
+            "precision": 0.3333333333333333,
+            "recall": 0.5,
+            "f1": 0.4,
+            "support": 2
+          }
+        },
+        "priority": {
+          "low": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          },
+          "medium": {
+            "precision": 0.3333333333333333,
+            "recall": 0.3333333333333333,
+            "f1": 0.3333333333333333,
+            "support": 3
+          },
+          "high": {
+            "precision": 0.5,
+            "recall": 1.0,
+            "f1": 0.6666666666666666,
+            "support": 4
+          },
+          "urgent": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 3
+          }
+        },
+        "confidence": {
+          "low": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "medium": {
+            "precision": 0.09090909090909091,
+            "recall": 1.0,
+            "f1": 0.16666666666666669,
+            "support": 1
+          },
+          "high": {
+            "precision": 1.0,
+            "recall": 0.09090909090909091,
+            "f1": 0.16666666666666669,
+            "support": 11
+          }
+        }
+      },
+      "confusion_matrix": {
+        "category": {
+          "bug": {
+            "bug": 4,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 1
+          },
+          "feature": {
+            "bug": 0,
+            "feature": 2,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 0
+          },
+          "documentation": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 1,
+            "configuration": 0,
+            "performance": 0
+          },
+          "configuration": {
+            "bug": 1,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 1,
+            "performance": 0
+          },
+          "performance": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "low": 2,
+            "medium": 1,
+            "high": 0,
+            "critical": 0
+          },
+          "medium": {
+            "low": 0,
+            "medium": 2,
+            "high": 1,
+            "critical": 1
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 2,
+            "critical": 1
+          },
+          "critical": {
+            "low": 0,
+            "medium": 0,
+            "high": 1,
+            "critical": 1
+          }
+        },
+        "priority": {
+          "low": {
+            "low": 0,
+            "medium": 2,
+            "high": 0,
+            "urgent": 0
+          },
+          "medium": {
+            "low": 1,
+            "medium": 1,
+            "high": 1,
+            "urgent": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 4,
+            "urgent": 0
+          },
+          "urgent": {
+            "low": 0,
+            "medium": 0,
+            "high": 3,
+            "urgent": 0
+          }
+        },
+        "confidence": {
+          "low": {
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "medium": {
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 10,
+            "high": 1
+          }
+        }
+      },
+      "confidence_calibration": {
+        "low": {
+          "cases": 0,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "medium": {
+          "cases": 11,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "high": {
+          "cases": 1,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        }
+      },
+      "errors_by_category": {
+        "bug": 5,
+        "performance": 2,
+        "configuration": 2,
+        "feature": 2,
+        "documentation": 1
+      }
+    }
+  },
+  "deltas": {
+    "category_accuracy": -0.16666666666666663,
+    "severity_accuracy": -0.33333333333333326,
+    "priority_accuracy": -0.49999999999999994,
+    "missing_information_accuracy": -0.9166666666666666,
+    "confidence_accuracy": -0.75,
+    "category_macro_f1": -0.14666666666666672,
+    "severity_macro_f1": -0.3031746031746031,
+    "priority_macro_f1": -0.6642857142857143,
+    "latency_ms_p50": 19167.428399996425,
+    "latency_ms_p95": 21737.490304999665,
+    "error_rate": 0.0
+  },
+  "cases": {
+    "improved": [],
+    "worsened": [
+      "invoice-download-permission",
+      "form-values-not-persisted",
+      "filter-dropdown-missing",
+      "report-export-timeout",
+      "database-url-missing",
+      "cors-header-not-configured",
+      "dark-theme-request",
+      "changelog-guide-outdated",
+      "delete-account-request",
+      "api-502-after-deploy"
+    ],
+    "changed": [
+      "memory-growth-after-update",
+      "search-results-outdated"
+    ],
+    "unchanged": [],
+    "detail": {
+      "invoice-download-permission": {
+        "expected": {
+          "category": "bug",
+          "severity": "critical",
+          "priority": "urgent",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "critical",
+            "priority": "urgent",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 2.2842999969725497,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [
+              "expected_behavior",
+              "actual_behavior",
+              "impact_analysis",
+              "mitigation_steps"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "severity",
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 20090.966499999922,
+          "error": null
+        }
+      },
+      "form-values-not-persisted": {
+        "expected": {
+          "category": "bug",
+          "severity": "high",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.37180000072112307,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [
+              "Detalles espec\u00edficos del formulario afectado",
+              "Pasos exactos para reproducir (m\u00e1s detallados)",
+              "Capturas de pantalla o logs del servidor",
+              "Versi\u00f3n de las aplicaciones frontend y backend"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 17092.158499996003,
+          "error": null
+        }
+      },
+      "filter-dropdown-missing": {
+        "expected": {
+          "category": "bug",
+          "severity": "medium",
+          "priority": "medium",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.24780000239843503,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [
+              "Ninguna informaci\u00f3n faltante identificada en el reporte proporcionado."
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 17207.969299997785,
+          "error": null
+        }
+      },
+      "report-export-timeout": {
+        "expected": {
+          "category": "performance",
+          "severity": "high",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.14709999959450215,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [
+              "Tiempo exacto de ejecuci\u00f3n antes del timeout",
+              "Tama\u00f1o del informe anual completo (n\u00famero de registros o volumen de datos)",
+              "Configuraci\u00f3n actual de los l\u00edmites de tiempo en el backend",
+              "Historial de incidencias similares en este componente"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 22290.18759999599,
+          "error": null
+        }
+      },
+      "database-url-missing": {
+        "expected": {
+          "category": "configuration",
+          "severity": "medium",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.167500002135057,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "critical",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [
+            "severity"
+          ],
+          "latency_ms": 12943.939700002375,
+          "error": null
+        }
+      },
+      "cors-header-not-configured": {
+        "expected": {
+          "category": "configuration",
+          "severity": "medium",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.11999999696854502,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [
+              "URL exacta de la API",
+              "Detalles espec\u00edficos del error en las consolas de desarrollador (C\u00f3digos de estado CORS)",
+              "Configuraci\u00f3n actual de los encabezados Access-Control-Allow-Origin y otros relacionados"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "category",
+            "severity",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 19753.89449999784,
+          "error": null
+        }
+      },
+      "dark-theme-request": {
+        "expected": {
+          "category": "feature",
+          "severity": "low",
+          "priority": "low",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.08589999924879521,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "medium",
+            "missing_information": [
+              "Criterios espec\u00edficos de dise\u00f1o o accesibilidad para el tema claro.",
+              "Impacto esperado en rendimiento o usabilidad."
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 18439.74960000196,
+          "error": null
+        }
+      },
+      "changelog-guide-outdated": {
+        "expected": {
+          "category": "documentation",
+          "severity": "low",
+          "priority": "medium",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "documentation",
+            "severity": "low",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.10549999569775537,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "documentation",
+            "severity": "medium",
+            "priority": "low",
+            "missing_information": [
+              "Lista de novedades de la \u00faltima versi\u00f3n",
+              "Cambios en la API o funcionalidades nuevas"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "severity",
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 15937.580300000263,
+          "error": null
+        }
+      },
+      "delete-account-request": {
+        "expected": {
+          "category": "feature",
+          "severity": "low",
+          "priority": "low",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.1078000059351325,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "medium",
+            "missing_information": [
+              "Detalles t\u00e9cnicos de la implementaci\u00f3n requerida",
+              "Impacto potencial en seguridad o datos del usuario",
+              "Caso de uso espec\u00edfico justificado por el solicitante"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 18581.24929999758,
+          "error": null
+        }
+      },
+      "api-502-after-deploy": {
+        "expected": {
+          "category": "bug",
+          "severity": "high",
+          "priority": "urgent",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "urgent",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.11510000331327319,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "critical",
+            "priority": "high",
+            "missing_information": [
+              "Logs de la API para identificar el error espec\u00edfico del gateway",
+              "Estado de los contenedores o servicios tras el despliegue",
+              "Configuraci\u00f3n actualizada del despliegue comparada con la anterior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "category",
+            "severity",
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 21287.524200000917,
+          "error": null
+        }
+      },
+      "memory-growth-after-update": {
+        "expected": {
+          "category": "performance",
+          "severity": "critical",
+          "priority": "urgent",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [
+            "severity",
+            "priority"
+          ],
+          "latency_ms": 0.14799999917158857,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "critical",
+            "priority": "high",
+            "missing_information": [
+              "Versi\u00f3n espec\u00edfica de la actualizaci\u00f3n aplicada",
+              "Gr\u00e1ficos o m\u00e9tricas detalladas del crecimiento de memoria",
+              "Configuraci\u00f3n espec\u00edfica del servidor afectado",
+              "Historial de logs relacionados con el aumento de memoria"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 20378.758700004255,
+          "error": null
+        }
+      },
+      "search-results-outdated": {
+        "expected": {
+          "category": "bug",
+          "severity": "medium",
+          "priority": "medium",
+          "missing_information": [],
+          "confidence": "medium"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "low"
+          },
+          "mismatches": [
+            "confidence"
+          ],
+          "latency_ms": 0.1399000029778108,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [
+              "Detalles t\u00e9cnicos del fallo (logs, stack traces)",
+              "Frecuencia de ocurrencia",
+              "Impacto en usuarios espec\u00edficos o volumen de incidencias afectadas"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "priority",
+            "missing_information"
+          ],
+          "latency_ms": 20290.692299997318,
+          "error": null
+        }
+      }
+    }
+  }
+}

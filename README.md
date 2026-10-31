@@ -188,8 +188,10 @@ python -m app.evaluation --backend fake --compare-with ollama --summary
 `--verbose` imprime en `stderr` el resultado por caso y los campos que no coinciden. `--summary` imprime en `stderr` un
 resumen legible (accuracy, macro-F1, calibración de confianza, errores por categoría esperada y principales
 confusiones). En ambos casos el JSON de métricas permanece en `stdout` para poder redirigirlo. La salida se fuerza a
-UTF-8 para que los acentos no se corrompan al redirigir en Windows. Las métricas de calidad son reproducibles; solo
-varía la latencia. Una ejecución reciente del baseline `FakeAnalyzer` produce:
+UTF-8. Si redirigues desde PowerShell y aparecen acentos corruptos, ejecuta antes
+`[Console]::OutputEncoding = [Text.UTF8Encoding]::new()` (y lo mismo para `$OutputEncoding`); en pantalla no hace falta.
+Las métricas de calidad son reproducibles; solo varía la latencia. Una ejecución reciente del baseline `FakeAnalyzer`
+produce:
 
 | Conjunto | Casos | Category | Severity | Priority | Missing info | Confidence | Errores |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -213,7 +215,8 @@ Además de la accuracy, el JSON incluye:
 `--compare-with` ejecuta dos backends sobre el mismo conjunto y compara resultados. El backend de `--backend` es la
 referencia y `--compare-with` el candidato; deben ser distintos. Imprime mejoras, empeoramientos, cambios entre fallos
 y deltas de accuracy, macro-F1, latencia y errores. En este modo el JSON cambia de forma: incluye `baseline.metrics`,
-`candidate.metrics`, `deltas` y `cases`. Es la forma reproducible de responder si Ollama mejora al baseline:
+`candidate.metrics`, `deltas` y `cases` (con `cases.detail` por caso: esperado, resultado y fallos de cada backend). Es
+la forma reproducible de responder si Ollama mejora al baseline:
 
 ```powershell
 python -m app.evaluation --backend fake --compare-with ollama --summary
@@ -236,6 +239,82 @@ baseline, no como una estimación precisa. Para Ollama, con el runtime ya dispon
 
 ```powershell
 python -m app.evaluation --backend ollama
+```
+
+### Comparación real `fake` frente a `ollama`
+
+Ejecutada el 30 de octubre de 2026 sobre `eval/data/incidents-holdout-v2.json` (12 casos), con:
+
+- Modelo `qwen3.5:4b` (Q4_K_M, 4.2B) servido por Ollama en local.
+- Equipo de desarrollo: Intel Core i7-1255U, 32 GB de RAM, gráficos Intel Iris Xe. La latencia depende del hardware.
+- Comando:
+  `python -m app.evaluation --backend fake --compare-with ollama --dataset eval/data/incidents-holdout-v2.json --summary`
+- Artefactos: `eval/results/ollama-vs-fake-holdout-v2.json` (detalle por caso) y
+  `eval/results/ollama-vs-fake-holdout-v2.txt` (resumen).
+
+| Backend | Category | Severity | Priority | Missing info | Confidence | Macro-F1 cat / sev / prio | p50 | p95 | Errores | Casos completos |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| `fake` | 1.000 | 0.917 | 0.917 | 1.000 | 0.917 | 1.000 / 0.889 / 0.914 | 0.14 ms | 1.23 ms | 0 | 10/12 |
+| `ollama` | 0.833 | 0.583 | 0.417 | 0.083 | 0.167 | 0.853 / 0.586 / 0.250 | 19 167.57 ms | 21 738.72 ms | 0 | 0/12 |
+
+Deltas de Ollama respecto al fake: category `-0.167`, severity `-0.333`, priority `-0.500`, missing `-0.917`,
+confidence `-0.750`; macro-F1 `-0.147 / -0.303 / -0.664`; p50 `+19 167.43 ms`; p95 `+21 737.49 ms`. De los 12 casos,
+Ollama no mejora ninguno, empeora 10 y cambia otros 2 sin llegar a acertarlos completos. Dos ejecuciones consecutivas
+dieron las mismas métricas de calidad; la latencia p50 varió entre 19.2 s y 22.4 s.
+
+| Caso | Esperado (cat / sev / prio) | Ollama (cat / sev / prio) | Fallos |
+|---|---|---|---|
+| `invoice-download-permission` | bug / critical / urgent | bug / high / high | sev, prio, missing, conf |
+| `form-values-not-persisted` | bug / high / high | bug / high / high | missing, conf |
+| `filter-dropdown-missing` | bug / medium / medium | bug / medium / medium | missing, conf |
+| `report-export-timeout` | performance / high / high | performance / high / high | missing, conf |
+| `database-url-missing` | configuration / medium / high | configuration / critical / high | sev |
+| `cors-header-not-configured` | configuration / medium / high | bug / high / high | cat, sev, missing, conf |
+| `dark-theme-request` | feature / low / low | feature / low / medium | prio, missing, conf |
+| `changelog-guide-outdated` | documentation / low / medium | documentation / medium / low | sev, prio, missing, conf |
+| `delete-account-request` | feature / low / low | feature / low / medium | prio, missing, conf |
+| `api-502-after-deploy` | bug / high / urgent | performance / critical / high | cat, sev, prio, missing, conf |
+| `memory-growth-after-update` | performance / critical / urgent | performance / critical / high | prio, missing, conf |
+| `search-results-outdated` | bug / medium / medium | bug / medium / high | prio, missing |
+
+El patrón dominante no parece ser un problema de comprensión: Ollama acierta la categoría en 10 de 12 casos, pero no
+sigue el contrato campo a campo:
+
+- **`missing_information`:** añade datos faltantes en 11 de 12 casos. En `filter-dropdown-missing` llega a devolver una
+  lista con `"Ninguna información faltante identificada en el reporte proporcionado."` en vez de `[]`. El prompt actual
+  no define cuándo la lista debe quedar vacía ni limita su contenido a datos imprescindibles.
+- **Confianza:** devuelve `medium` en 11 casos y `high` en 1, mientras que el esperado es `high` en 11 y `medium` en 1.
+  Acierta el nivel en 2 de 12, pero ningún caso queda completamente correcto. La confianza no está calibrada contra el
+  contrato.
+- **Prioridad y severidad:** tiende a valores intermedios. Rebaja urgencias (`invoice`, `api-502` y `memory` pasan de
+  `urgent` a `high`), sube peticiones `low` a `medium` (`dark-theme`, `delete-account`) y baja documentación `medium` a
+  `low` (`changelog`). En severidad acierta 7 de 12.
+- **Categoría:** es el campo que mejor resuelve (10 de 12). Falla donde los conceptos se solapan:
+  `cors-header-not-configured` pasa de `configuration` a `bug` y `api-502-after-deploy` de `bug` a `performance`.
+- **Latencia:** unos 19 s por caso en mediana y 22 s en p95, frente a 0.14 ms y 1.23 ms del fake. Es un coste relevante
+  incluso si la calidad fuera equivalente.
+
+La lectura honesta es que el adaptador actual de Ollama no compite con el baseline en este conjunto. No se cambió el
+prompt ni las reglas después de ver estos resultados: hacerlo sobre el holdout v2 lo convertiría en un conjunto de
+ajuste. El siguiente paso razonable es definir una rúbrica explícita (categorías, política de severidad/prioridad,
+cuándo `missing_information` va vacío y cómo calibrar `confidence`), añadir ejemplos y validarla sobre un holdout nuevo
+o con validación cruzada. Solo tendría sentido promover Ollama a backend por defecto si supera al fake con un coste de
+latencia aceptable.
+
+Limitaciones de esta comparación: 12 casos (un fallo mueve la accuracy unos 8 puntos), un único modelo y cuantización,
+un único equipo, sin intervalos de confianza y con un prompt mínimo sin rúbrica ni ejemplos. El 10/12 del fake tampoco
+es una estimación neutral: sus reglas se ajustaron con otros conjuntos. Los resultados describen este adaptador y este
+conjunto, no el techo del modelo.
+
+Para regenerar los artefactos:
+
+```powershell
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new()
+$OutputEncoding = [Text.UTF8Encoding]::new()
+python -m app.evaluation --backend fake --compare-with ollama `
+  --dataset eval/data/incidents-holdout-v2.json --summary `
+  2> eval/results/ollama-vs-fake-holdout-v2.txt `
+  > eval/results/ollama-vs-fake-holdout-v2.json
 ```
 
 ## Demo reproducible

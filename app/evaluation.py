@@ -117,6 +117,8 @@ class BackendComparison:
     worsened: tuple[str, ...]
     changed: tuple[str, ...]
     unchanged: tuple[str, ...]
+    baseline_outcomes: tuple[CaseOutcome, ...] = ()
+    candidate_outcomes: tuple[CaseOutcome, ...] = ()
 
     def deltas(self) -> dict[str, float]:
         fields = (
@@ -154,8 +156,38 @@ class BackendComparison:
                 "worsened": list(self.worsened),
                 "changed": list(self.changed),
                 "unchanged": list(self.unchanged),
+                "detail": _comparison_detail(
+                    self.baseline_outcomes,
+                    self.candidate_outcomes,
+                ),
             },
         }
+
+
+def _comparison_detail(
+    baseline_outcomes: tuple[CaseOutcome, ...],
+    candidate_outcomes: tuple[CaseOutcome, ...],
+) -> dict[str, dict[str, Any]]:
+    candidate_by_id = {outcome.id: outcome for outcome in candidate_outcomes}
+    detail: dict[str, dict[str, Any]] = {}
+    for baseline_outcome in baseline_outcomes:
+        candidate_outcome = candidate_by_id[baseline_outcome.id]
+        detail[baseline_outcome.id] = {
+            "expected": baseline_outcome.expected,
+            "baseline": _outcome_payload(baseline_outcome),
+            "candidate": _outcome_payload(candidate_outcome),
+        }
+    return detail
+
+
+def _outcome_payload(outcome: CaseOutcome) -> dict[str, Any]:
+    return {
+        "valid": outcome.valid,
+        "actual": outcome.actual,
+        "mismatches": list(outcome.mismatches),
+        "latency_ms": outcome.latency_ms,
+        "error": outcome.error,
+    }
 
 
 def load_dataset(path: Path = DEFAULT_DATASET) -> list[EvaluationCase]:
@@ -316,6 +348,8 @@ def compare_outcomes(
         worsened=tuple(worsened),
         changed=tuple(changed),
         unchanged=tuple(unchanged),
+        baseline_outcomes=tuple(baseline_outcomes),
+        candidate_outcomes=tuple(candidate_outcomes),
     )
 
 

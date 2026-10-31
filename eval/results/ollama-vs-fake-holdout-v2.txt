@@ -1,0 +1,39 @@
+Resumen de evaluación (fake)
+Casos: 12 | Válidos: 12 | Errores: 0
+Accuracy: category=1.000 severity=0.917 priority=0.917 missing=1.000 confidence=0.917
+Macro-F1: category=1.000 severity=0.889 priority=0.914
+Calibración de confianza (nivel -> aciertos/casos):
+  low: 0/1 (0.000)
+  medium: 0/0 (0.000)
+  high: 10/11 (0.909)
+Errores por categoría esperada: bug=1, performance=1
+Confusiones severity: critical->medium=1
+Confusiones priority: urgent->medium=1
+Resumen de evaluación (ollama)
+Casos: 12 | Válidos: 12 | Errores: 0
+Accuracy: category=0.833 severity=0.583 priority=0.417 missing=0.083 confidence=0.167
+Macro-F1: category=0.853 severity=0.586 priority=0.250
+Calibración de confianza (nivel -> aciertos/casos):
+  low: 0/0 (0.000)
+  medium: 0/11 (0.000)
+  high: 0/1 (0.000)
+Errores por categoría esperada: bug=5, configuration=2, documentation=1, feature=2, performance=2
+Confusiones category: configuration->bug=1, bug->performance=1
+Confusiones severity: medium->high=1, medium->critical=1, low->medium=1
+Confusiones priority: urgent->high=3, low->medium=2, medium->low=1
+Comparación fake -> ollama
+Casos: 12 | Mejoras: 0 | Empeoramientos: 10 | Cambios: 2 | Sin cambios: 0
+Métricas (baseline -> candidato, delta):
+  category: 1.000 -> 0.833 (-0.167)
+  severity: 0.917 -> 0.583 (-0.333)
+  priority: 0.917 -> 0.417 (-0.500)
+  missing: 1.000 -> 0.083 (-0.917)
+  confidence: 0.917 -> 0.167 (-0.750)
+  macro-F1 category: 1.000 -> 0.853 (-0.147)
+  macro-F1 severity: 0.889 -> 0.586 (-0.303)
+  macro-F1 priority: 0.914 -> 0.250 (-0.664)
+  latency p50: 0.14 -> 19167.57 ms (+19167.43)
+  latency p95: 1.23 -> 21738.72 ms (+21737.49)
+  errors: 0 -> 0 (+0)
+Empeoran: invoice-download-permission, form-values-not-persisted, filter-dropdown-missing, report-export-timeout, database-url-missing, cors-header-not-configured, dark-theme-request, changelog-guide-outdated, delete-account-request, api-502-after-deploy
+Cambian sin pasar a correcto: memory-growth-after-update, search-results-outdated
