@@ -6,7 +6,7 @@ from app.logging_config import JsonFormatter
 
 def test_json_formatter_emits_only_operational_fields() -> None:
     record = logging.LogRecord(
-        name="app.service",
+        name="app.services.incident",
         level=logging.INFO,
         pathname=__file__,
         lineno=1,

@@ -8,13 +8,13 @@ from fastapi import Depends
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.analyzer import AnalyzerProviderUnavailableError, AnalyzerTimeoutError
-from app.config import Settings, validate_runtime_settings
-from app.database import Base, get_db_session
+from app.analyzers.core import AnalyzerProviderUnavailableError, AnalyzerTimeoutError
+from app.infrastructure.config import Settings, validate_runtime_settings
+from app.infrastructure.database import Base, get_db_session
 from app.main import app
 from app.main import get_incident_service
-from app.repository import IncidentRepository
-from app.service import IncidentService
+from app.infrastructure.repositories import IncidentRepository
+from app.services.incident import IncidentService
 
 
 class SyncASGIClient:

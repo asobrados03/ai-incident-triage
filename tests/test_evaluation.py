@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 
 from app import evaluation as evaluation_module
-from app.analyzer import FakeAnalyzer
+from app.analyzers.core import FakeAnalyzer
 from app.evaluation import (
     DEFAULT_HOLDOUT_DATASET,
     DEFAULT_HOLDOUT_V2_DATASET,

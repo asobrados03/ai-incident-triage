@@ -1,7 +1,7 @@
 import pytest
 
 from app.auth import Principal, Role, parse_api_keys
-from app.config import Settings
+from app.infrastructure.config import Settings
 
 
 VALID_READER_KEY = "reader-key-0123456789"

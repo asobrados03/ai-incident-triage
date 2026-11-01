@@ -6,16 +6,16 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.auth import Principal, Role
-from app.config import Settings, validate_runtime_settings
-from app.database import Base
-from app.orm_models import (
+from app.infrastructure.config import Settings, validate_runtime_settings
+from app.infrastructure.database import Base
+from app.infrastructure.orm_models import (
     AuditLogORM,
     IncidentORM,
     TriageResultORM,
     TriageReviewORM,
 )
-from app.repository import AuditRepository, RetentionRepository
-from app.retention import RetentionService
+from app.infrastructure.repositories import AuditRepository, RetentionRepository
+from app.services.retention import RetentionService
 
 
 @pytest.fixture

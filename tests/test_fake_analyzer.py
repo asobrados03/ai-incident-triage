@@ -1,4 +1,4 @@
-from app.analyzer import FakeAnalyzer
+from app.analyzers.core import FakeAnalyzer
 from app.schemas import IncidentCreate, TriageResult
 
 

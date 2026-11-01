@@ -6,8 +6,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import Settings, get_settings
-from app.database import Base, get_db_session
+from app.infrastructure.config import Settings, get_settings
+from app.infrastructure.database import Base, get_db_session
 from app.main import app
 
 

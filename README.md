@@ -52,7 +52,7 @@ Capas:
 - `app/api/dependencies.py`: composición de servicios, repositorios y analizadores para FastAPI.
 - `app/auth.py`: roles, almacén de API keys y dependencias de autenticación/autorización.
 - `app/services/incident.py`: transiciones de estado y casos de uso de incidencias.
-- `app/services/retention.py`: caso de uso de retención y CLI `python -m app.retention`.
+- `app/services/retention.py`: caso de uso de retención y CLI `python -m app.services.retention`.
 - `app/infrastructure/repositories.py`: consultas y persistencia SQLAlchemy, incluida auditoría y retención.
 - `app/infrastructure/orm_models.py`: tablas `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
 - `app/infrastructure/config.py` y `app/infrastructure/database.py`: configuración, engine, sesiones y creación de tablas.
@@ -61,8 +61,7 @@ Capas:
 - `app/schemas.py`: contratos Pydantic públicos.
 - `app/evaluation/runner.py`: evaluación offline independiente de FastAPI.
 
-Los módulos antiguos (`app/analyzer.py`, `app/service.py`, `app/repository.py`, etc.) se conservan como fachadas
-de compatibilidad para imports existentes; la implementación vive en las capas anteriores.
+La aplicación usa estas rutas por capas directamente; no se mantienen módulos fachada ni aliases de compatibilidad.
 
 ## Instalación y ejecución local
 
@@ -270,9 +269,9 @@ curl.exe -i -X POST http://127.0.0.1:8000/admin/retention `
 Para ejecutarla fuera de la API:
 
 ```powershell
-python -m app.retention
-python -m app.retention --incidents-days 30 --audit-days 180
-python -m app.retention --apply
+python -m app.services.retention
+python -m app.services.retention --incidents-days 30 --audit-days 180
+python -m app.services.retention --apply
 ```
 
 `*_matched` indica las filas seleccionadas por el corte; con `--apply` o `"dry_run": false` son las filas

@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from app.analyzer import (
+from app.analyzers.core import (
     AnalyzerProviderUnavailableError,
     AnalyzerResponseError,
     AnalyzerTimeoutError,
