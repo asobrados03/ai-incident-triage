@@ -1,12 +1,12 @@
 import json
 import logging
 
-from app.logging_config import JsonFormatter
+from backend.logging_config import JsonFormatter
 
 
 def test_json_formatter_emits_only_operational_fields() -> None:
     record = logging.LogRecord(
-        name="app.services.incident",
+        name="backend.services.incident",
         level=logging.INFO,
         pathname=__file__,
         lineno=1,

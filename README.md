@@ -24,7 +24,7 @@ Estados principales: `created → analyzing → analyzed → reviewed`. Si el an
 
 ```mermaid
 flowchart LR
-    Client[Cliente HTTP / demo PowerShell] --> Auth[X-API-Key + roles]
+    Client[Cliente HTTP / demo PowerShell] --> Auth[JWT Bearer + roles]
     Auth --> API[FastAPI routers]
     API --> Service[IncidentService]
     Service --> Repo[IncidentRepository]
@@ -47,19 +47,19 @@ flowchart LR
 
 Capas:
 
-- `app/main.py`: creación de la aplicación y ciclo de vida; las rutas y dependencias están en `app/api/`.
-- `app/api/routes.py`: controladores HTTP, validación mediante esquemas y traducción de errores a HTTP.
-- `app/api/dependencies.py`: composición de servicios, repositorios y analizadores para FastAPI.
-- `app/auth.py`: roles, almacén de API keys y dependencias de autenticación/autorización.
-- `app/services/incident.py`: transiciones de estado y casos de uso de incidencias.
-- `app/services/retention.py`: caso de uso de retención y CLI `python -m app.services.retention`.
-- `app/infrastructure/repositories.py`: consultas y persistencia SQLAlchemy, incluida auditoría y retención.
-- `app/infrastructure/orm_models.py`: tablas `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
-- `app/infrastructure/config.py` y `app/infrastructure/database.py`: configuración, engine, sesiones y creación de tablas.
-- `app/domain/models.py`: enums y estados del dominio.
-- `app/analyzers/core.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
-- `app/schemas.py`: contratos Pydantic públicos.
-- `app/evaluation/runner.py`: evaluación offline independiente de FastAPI.
+- `backend/main.py`: creación de la aplicación y ciclo de vida; las rutas y dependencias están en `backend/api/`.
+- `backend/api/routes.py`: controladores HTTP, validación mediante esquemas y traducción de errores a HTTP.
+- `backend/api/dependencies.py`: composición de servicios, repositorios y analizadores para FastAPI.
+- `backend/auth.py`: roles, almacén de API keys y dependencias de autenticación/autorización.
+- `backend/services/incident.py`: transiciones de estado y casos de uso de incidencias.
+- `backend/services/retention.py`: caso de uso de retención y CLI `python -m backend.services.retention`.
+- `backend/infrastructure/repositories.py`: consultas y persistencia SQLAlchemy, incluida auditoría y retención.
+- `backend/infrastructure/orm_models.py`: tablas `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
+- `backend/infrastructure/config.py` y `backend/infrastructure/database.py`: configuración, engine, sesiones y creación de tablas.
+- `backend/domain/models.py`: enums y estados del dominio.
+- `backend/analyzers/core.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
+- `backend/schemas.py`: contratos Pydantic públicos.
+- `backend/evaluation/runner.py`: evaluación offline independiente de FastAPI.
 
 La aplicación usa estas rutas por capas directamente; no se mantienen módulos fachada ni aliases de compatibilidad.
 
@@ -71,7 +71,7 @@ Requiere Python 3.11 o superior:
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[test]"
-uvicorn app.main:app --reload
+uvicorn backend.main:app --reload
 ```
 
 La API queda en `http://127.0.0.1:8000`; la documentación OpenAPI está disponible en `/docs` y el health check
@@ -79,14 +79,40 @@ público en `/health`. SQLite usa por defecto una ruta absoluta en la raíz del 
 depender del directorio desde el que se arranque Uvicorn. El backend de análisis por defecto es `fake`, por lo que
 este arranque no necesita Ollama.
 
+El frontend vive en `frontend/` y requiere Node 24 o superior:
+
+```powershell
+Set-Location frontend
+npm install
+npm run dev
+```
+
+La URL del backend se puede configurar con `VITE_API_URL`; si se omite, el cliente usa el mismo origen.
+La base incluye Vite + React + TypeScript, Tailwind, componentes compatibles con shadcn/ui, TanStack Query,
+React Router, react-hook-form, zod, Vitest, Testing Library y MSW.
+
+Rutas frontend disponibles: `/` (bandeja), `/new` (creación), `/incidents/:id` (detalle, análisis y revisión),
+`/metrics` (métricas) y `/login` (autenticación). Las rutas de trabajo requieren un token JWT; una respuesta 401
+limpia la sesión local y redirige al acceso.
+
 Para comprobar la instalación:
 
 ```powershell
 python -m pytest -q
 ```
 
-La suite usa el backend determinista y no realiza llamadas a Ollama. La misma orden es la que ejecuta CI después de
-instalar el extra `test`.
+La suite usa el backend determinista y no realiza llamadas a Ollama. Las validaciones completas son:
+
+```powershell
+python -m pytest -q
+Set-Location frontend
+npm ci
+npm run lint
+npm test -- --run
+npm run build
+```
+
+CI ejecuta estas comprobaciones separando los jobs de backend y frontend, además de validar el Dockerfile.
 
 ## Configuración
 
@@ -98,12 +124,16 @@ instalar el extra `test`.
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Runtime local de Ollama. |
 | `OLLAMA_MODEL` | `qwen3.5:4b` | Modelo Ollama. |
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Timeout finito del adaptador. |
-| `API_KEYS` | vacío | Claves y roles con formato `name:role:key,...`; vacío deshabilita auth. |
+| `AUTH_USERS` | vacío | Usuarios y roles con formato `name:role:password,...`; vacío deshabilita auth local. |
+| `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres cuando `AUTH_USERS` está configurado. |
+| `JWT_EXPIRATION_MINUTES` | `60` | Duración de los tokens JWT. |
+| `CORS_ORIGINS` | `http://localhost:5173` | Orígenes HTTP(S) separados por comas; `*` no está permitido. |
 | `RETENTION_DAYS` | `90` | Antigüedad mínima de incidencias antes de poder purgarlas. |
 | `AUDIT_RETENTION_DAYS` | `365` | Antigüedad mínima de registros de auditoría antes de purgarlos. |
 
-El arranque valida backend, URL HTTP(S), modelo no vacío, timeout positivo, días de retención positivos y el formato
-de `API_KEYS`. `GET /health` es público, no llama a Ollama ni expone URL, modelo, claves o secretos:
+El arranque valida backend, URL HTTP(S), modelo no vacío, timeout positivo, días de retención positivos, el formato
+de `AUTH_USERS`, la longitud de `JWT_SECRET` y los orígenes CORS. `GET /health` es público, no llama a Ollama ni
+expone URL, modelo, usuarios, claves o secretos:
 
 ```json
 {"status":"ok","analyzer_backend":"fake"}
@@ -111,22 +141,23 @@ de `API_KEYS`. `GET /health` es público, no llama a Ollama ni expone URL, model
 
 ## Autenticación y autorización
 
-La autenticación se activa definiendo `API_KEYS`. El formato es una lista separada por comas con entradas
-`nombre:rol:clave`:
+La autenticación se activa definiendo `AUTH_USERS` y `JWT_SECRET`. El formato es una lista separada por comas con
+entradas `nombre:rol:contraseña`:
 
 ```powershell
-$env:API_KEYS = "soporte:writer:clave-de-soporte-0001,auditor:reader:clave-de-auditor-0001,admin:admin:clave-de-admin-0001"
-uvicorn app.main:app --reload
+$env:AUTH_USERS = "soporte:writer:contraseña-de-soporte,auditor:reader:contraseña-de-auditor,admin:admin:contraseña-de-admin"
+$env:JWT_SECRET = "cambia-este-secreto-por-uno-de-al-menos-32-caracteres"
+uvicorn backend.main:app --reload
 ```
 
-- La clave debe tener al menos 16 caracteres. Los nombres y las claves no pueden repetirse.
+- `POST /auth/login` recibe `{"username":"soporte","password":"..."}` y devuelve un token Bearer.
 - Los roles son jerárquicos: `reader < writer < admin`.
-- El cliente envía la clave en la cabecera `X-API-Key`.
-- Sin cabecera o con una clave inválida la API devuelve `401`; con un rol insuficiente devuelve `403`.
+- El cliente envía el token en la cabecera `Authorization: Bearer <token>`.
+- Sin token o con un token inválido la API devuelve `401`; con un rol insuficiente devuelve `403`.
 - `GET /health` permanece público para sondas de disponibilidad.
-- Si `API_KEYS` está vacío, la autenticación se deshabilita y se permite todo el acceso. Es el modo por defecto
+- Si `AUTH_USERS` está vacío, la autenticación se deshabilita y se permite todo el acceso. Es el modo por defecto
   para desarrollo local, tests y demo.
-- Las claves no se incluyen en respuestas, logs ni auditoría. Las comparaciones usan hashes y
+- Las contraseñas y secretos no se incluyen en respuestas, logs ni auditoría. Las comparaciones usan hashes y
   `secrets.compare_digest`.
 
 | Rol | Permisos |
@@ -136,8 +167,11 @@ uvicorn app.main:app --reload
 | `admin` | Todo lo anterior más `GET /audit` y `POST /admin/retention` |
 
 ```powershell
+$login = curl.exe -sS -X POST http://127.0.0.1:8000/auth/login `
+  -H "Content-Type: application/json" `
+  --data-raw '{"username":"auditor","password":"contraseña-de-auditor"}' | ConvertFrom-Json
 curl.exe -i http://127.0.0.1:8000/incidents/{incident_id} `
-  -H "X-API-Key: $env:READER_API_KEY"
+  -H "Authorization: Bearer $($login.access_token)"
 ```
 
 ## API y ejemplos
@@ -176,6 +210,16 @@ curl.exe -i http://127.0.0.1:8000/incidents/{incident_id}
 
 Devuelve `200` si existe y `404` con `{"detail":"Incident not found"}` si no existe.
 
+### Bandeja ligera — `GET /incidents`
+
+```powershell
+curl.exe -i "http://127.0.0.1:8000/incidents?limit=20&offset=0&status=analyzed&confidence=high"
+```
+
+Devuelve incidencias ordenadas por `created_at` descendente con `id`, `title`, `status`, `created_at`,
+la `confidence` de la propuesta y los bloques ligeros `proposal` y `final` (este último solo si existe
+una revisión). Admite `limit` (1–200), `offset`, `status` y `confidence`.
+
 ### Analizar — `POST /incidents/{incident_id}/analysis`
 
 ```powershell
@@ -202,8 +246,21 @@ Un comentario solo acepta la propuesta sin cambios. Una petición vacía, una in
 duplicada devuelve `422`/`409` según el caso.
 
 Límites relevantes: título 1–200 caracteres, descripción 1–5000, comentarios 2000, componentes y listas de triaje
-máximo 20 elementos. Los campos desconocidos se rechazan. Si la autenticación está activa, añade la cabecera
-`X-API-Key` a todas las peticiones salvo `GET /health`.
+máximo 20 elementos. Los campos desconocidos se rechazan. Si la autenticación está activa, añade la cabecera `Authorization: Bearer <token>` a todas las peticiones salvo
+`GET /health`.
+
+`affected_components` y `missing_information` se tratan como conjuntos: el orden de sus elementos no forma parte
+del contrato y los duplicados se eliminan durante la validación. `summary` y `justification` se conservan como
+texto exacto.
+
+### Métricas de revisión — `GET /review-metrics`
+
+```powershell
+curl.exe -i http://127.0.0.1:8000/review-metrics
+```
+
+Devuelve el total de revisiones, aceptaciones sin cambios, acierto por campo, matrices de confusión para
+`category`, `severity`, `priority` y `confidence`, y correcciones agrupadas por la confianza de la propuesta.
 
 ## Auditoría
 
@@ -223,7 +280,7 @@ y metadatos operativos. No se guardan títulos, descripciones, comentarios, prom
 
 ```powershell
 curl.exe -i "http://127.0.0.1:8000/audit?action=incident.review&limit=20" `
-  -H "X-API-Key: $env:ADMIN_API_KEY"
+  -H "Authorization: Bearer $($login.access_token)"
 ```
 
 ```json
@@ -260,7 +317,7 @@ La retención elimina datos antiguos por antigüedad, nunca por estado ni por co
 
 ```powershell
 curl.exe -i -X POST http://127.0.0.1:8000/admin/retention `
-  -H "X-API-Key: $env:ADMIN_API_KEY" `
+  -H "Authorization: Bearer $($login.access_token)" `
   -H "Content-Type: application/json" `
   --data-raw '{"dry_run":true,"incidents_days":90,"audit_days":365}'
 ```
@@ -280,9 +337,9 @@ curl.exe -i -X POST http://127.0.0.1:8000/admin/retention `
 Para ejecutarla fuera de la API:
 
 ```powershell
-python -m app.services.retention
-python -m app.services.retention --incidents-days 30 --audit-days 180
-python -m app.services.retention --apply
+python -m backend.services.retention
+python -m backend.services.retention --incidents-days 30 --audit-days 180
+python -m backend.services.retention --apply
 ```
 
 `*_matched` indica las filas seleccionadas por el corte; con `--apply` o `"dry_run": false` son las filas
@@ -303,7 +360,7 @@ ollama pull qwen3.5:4b
 ollama list
 Invoke-RestMethod http://127.0.0.1:11434/api/tags
 $env:ANALYZER_BACKEND = "ollama"
-uvicorn app.main:app --reload
+uvicorn backend.main:app --reload
 ```
 
 `OllamaAnalyzer` solicita JSON estructurado con temperatura cero, `think: false` y `num_predict: 512`; valida la
@@ -323,14 +380,14 @@ Hay varios conjuntos con propósitos distintos:
   referencia más honesta de generalización de esta iteración.
 
 ```powershell
-python -m app.evaluation
-python -m app.evaluation --dataset eval/data/incidents-holdout-v2.json
-python -m app.evaluation --dataset eval/data/incidents-regression.json
-python -m app.evaluation --dataset eval/data/incidents-holdout.json
-python -m app.evaluation --verbose
-python -m app.evaluation --summary
-python -m app.evaluation --summary --dataset eval/data/incidents-holdout-v2.json
-python -m app.evaluation --backend fake --compare-with ollama --summary
+python -m backend.evaluation
+python -m backend.evaluation --dataset eval/data/incidents-holdout-v2.json
+python -m backend.evaluation --dataset eval/data/incidents-regression.json
+python -m backend.evaluation --dataset eval/data/incidents-holdout.json
+python -m backend.evaluation --verbose
+python -m backend.evaluation --summary
+python -m backend.evaluation --summary --dataset eval/data/incidents-holdout-v2.json
+python -m backend.evaluation --backend fake --compare-with ollama --summary
 ```
 
 `--verbose` imprime en `stderr` el resultado por caso y los campos que no coinciden. `--summary` imprime en `stderr` un
@@ -367,7 +424,7 @@ y deltas de accuracy, macro-F1, latencia y errores. En este modo el JSON cambia 
 la forma reproducible de responder si Ollama mejora al baseline:
 
 ```powershell
-python -m app.evaluation --backend fake --compare-with ollama --summary
+python -m backend.evaluation --backend fake --compare-with ollama --summary
 ```
 
 Ese comando sí necesita Ollama levantado; los tests siguen sin llamar al LLM.
@@ -386,7 +443,7 @@ solo fallo mueve la accuracy unos 8 puntos, así que los resultados deben leerse
 baseline, no como una estimación precisa. Para Ollama, con el runtime ya disponible:
 
 ```powershell
-python -m app.evaluation --backend ollama
+python -m backend.evaluation --backend ollama
 ```
 
 ### Comparación real `fake` frente a `ollama`
@@ -396,7 +453,7 @@ Ejecutada el 30 de octubre de 2026 sobre `eval/data/incidents-holdout-v2.json` (
 - Modelo `qwen3.5:4b` (Q4_K_M, 4.2B) servido por Ollama en local.
 - Equipo de desarrollo: Intel Core i7-1255U, 32 GB de RAM, gráficos Intel Iris Xe. La latencia depende del hardware.
 - Comando:
-  `python -m app.evaluation --backend fake --compare-with ollama --dataset eval/data/incidents-holdout-v2.json --summary`
+  `python -m backend.evaluation --backend fake --compare-with ollama --dataset eval/data/incidents-holdout-v2.json --summary`
 - Artefactos: `eval/results/ollama-vs-fake-holdout-v2.json` (detalle por caso) y
   `eval/results/ollama-vs-fake-holdout-v2.txt` (resumen).
 
@@ -459,7 +516,7 @@ Para regenerar los artefactos:
 ```powershell
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
 $OutputEncoding = [Text.UTF8Encoding]::new()
-python -m app.evaluation --backend fake --compare-with ollama `
+python -m backend.evaluation --backend fake --compare-with ollama `
   --dataset eval/data/incidents-holdout-v2.json --summary `
   2> eval/results/ollama-vs-fake-holdout-v2.txt `
   > eval/results/ollama-vs-fake-holdout-v2.json
@@ -474,15 +531,15 @@ Con la API arrancada en otra terminal:
 ```
 
 El script ejecuta health → create → analysis → GET → review, no contiene secretos y solo usa `curl.exe` y herramientas
-incluidas en PowerShell. También acepta una URL alternativa y una API key opcional:
+incluidas en PowerShell. También acepta una URL alternativa y credenciales JWT opcionales:
 
 ```powershell
 .\scripts\demo.ps1 -BaseUrl "http://localhost:8000"
-.\scripts\demo.ps1 -ApiKey $env:WRITER_API_KEY
+.\scripts\demo.ps1 -Username "soporte" -Password $env:WRITER_PASSWORD
 ```
 
-La clave solo se usa para construir la cabecera `X-API-Key`; no se imprime ni se escribe en disco. Con la
-autenticación deshabilitada (`API_KEYS` vacío) el script funciona sin `-ApiKey`.
+El token solo se usa para construir la cabecera `Authorization`; no se imprime ni se escribe en disco. Con la
+autenticación deshabilitada (`AUTH_USERS` vacío) el script funciona sin credenciales.
 
 ## Docker y CI
 
@@ -493,9 +550,10 @@ docker run --rm -p 8000:8000 -v "${PWD}/data:/data" `
 ```
 
 La imagen no incluye `incidents.db`, tests, `.venv`, artefactos locales ni secretos. El contenedor no inicia Ollama:
-debe ejecutarse aparte. GitHub Actions en `.github/workflows/ci.yml` instala el proyecto, ejecuta `python -m pytest -q`
-y valida el Dockerfile. Si activas la autenticación, inyecta `API_KEYS` con `--env-file` o un gestor de secretos; no
-la incluyas en la imagen. PostgreSQL no se incorpora todavía: SQLite cubre el MVP local y evita añadir operación,
+debe ejecutarse aparte. GitHub Actions en `.github/workflows/ci.yml` instala el proyecto, ejecuta pytest, instala
+el frontend con `npm ci`, ejecuta type-check, tests y build, y valida el Dockerfile. Si activas la autenticación,
+inyecta `AUTH_USERS` y `JWT_SECRET` con `--env-file` o un gestor de secretos; no la incluyas en la imagen.
+PostgreSQL no se incorpora todavía: SQLite cubre el MVP local y evita añadir operación,
 driver y migraciones antes de necesitar despliegue multiinstancia.
 
 ## Decisiones, costes y seguridad
@@ -508,9 +566,10 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 - **Sin RAG/agentes:** no son necesarios para clasificar el contrato actual y aumentarían superficie y coste.
 - **Validación estructurada:** Pydantic rechaza respuestas incompletas; se evita puntuar o persistir texto no validado.
 - **Revisión humana:** la tabla `triage_reviews` conserva el original y permite medir correcciones futuras.
-- **Autenticación y autorización:** `API_KEYS` se valida al arrancar; las claves se comparan por hash con
-  `secrets.compare_digest` y nunca se devuelven, registran ni auditan. Los roles son jerárquicos y las rutas
-  administrativas quedan restringidas a `admin`. Vaciar `API_KEYS` deshabilita auth solo para desarrollo local.
+- **Autenticación y autorización:** `AUTH_USERS` y `JWT_SECRET` se validan al arrancar; las contraseñas se comparan
+  por hash y nunca se devuelven, registran ni auditan. Los tokens JWT tienen expiración configurable, los roles son
+  jerárquicos y las rutas administrativas quedan restringidas a `admin`. Vaciar `AUTH_USERS` deshabilita auth solo
+  para desarrollo local.
 - **Auditoría:** `audit_logs` registra actor, rol, acción, recurso y metadatos operativos. Se evita guardar texto
   libre de incidencias, comentarios, prompts o claves. Si la escritura de auditoría falla durante un análisis, el
   error original se conserva y el fallo de auditoría se registra en el log.

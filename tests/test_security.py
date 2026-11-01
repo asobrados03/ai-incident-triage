@@ -6,19 +6,20 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.infrastructure.config import Settings, get_settings
-from app.infrastructure.database import Base, get_db_session
-from app.main import app
+from backend.infrastructure.config import Settings, get_settings
+from backend.infrastructure.database import Base, get_db_session
+from backend.main import app
 
 
-READER_KEY = "reader-key-0123456789"
-WRITER_KEY = "writer-key-0123456789"
-ADMIN_KEY = "admin-key-0123456789"
-API_KEYS = (
-    f"reader:reader:{READER_KEY},"
-    f"writer:writer:{WRITER_KEY},"
-    f"admin:admin:{ADMIN_KEY}"
+PASSWORDS = {
+    "reader": "reader-password-0123456789",
+    "writer": "writer-password-0123456789",
+    "admin": "admin-password-0123456789",
+}
+AUTH_USERS = ",".join(
+    f"{name}:{name}:{password}" for name, password in PASSWORDS.items()
 )
+JWT_SECRET = "test-jwt-secret-that-is-long-enough-123456"
 
 
 class SyncASGIClient:
@@ -65,7 +66,10 @@ def secure_client(tmp_path) -> Iterator[SyncASGIClient]:
         finally:
             session.close()
 
-    test_settings = Settings(api_keys=API_KEYS)
+    test_settings = Settings(
+        auth_users=AUTH_USERS,
+        jwt_secret=JWT_SECRET,
+    )
     app.dependency_overrides[get_db_session] = get_test_session
     app.dependency_overrides[get_settings] = lambda: test_settings
     try:
@@ -75,8 +79,13 @@ def secure_client(tmp_path) -> Iterator[SyncASGIClient]:
         database_engine.dispose()
 
 
-def auth(key: str) -> dict[str, str]:
-    return {"X-API-Key": key}
+def auth(client: SyncASGIClient, username: str) -> dict[str, str]:
+    response = client.post(
+        "/auth/login",
+        json={"username": username, "password": PASSWORDS[username]},
+    )
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
 
 def incident_payload() -> dict:
@@ -89,12 +98,12 @@ def incident_payload() -> dict:
 
 def create_incident(
     client: SyncASGIClient,
-    key: str = WRITER_KEY,
+    username: str = "writer",
 ) -> str:
     response = client.post(
         "/incidents",
         json=incident_payload(),
-        headers=auth(key),
+        headers=auth(client, username),
     )
     assert response.status_code == 201
     return response.json()["id"]
@@ -109,29 +118,46 @@ def test_health_remains_public_with_authentication_enabled(
     assert response.json() == {"status": "ok", "analyzer_backend": "fake"}
 
 
-def test_missing_api_key_returns_401_without_exposing_secrets(
+def test_login_issues_bearer_token(secure_client: SyncASGIClient) -> None:
+    response = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": PASSWORDS["writer"]},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["token_type"] == "bearer"
+    assert response.json()["access_token"]
+
+
+def test_missing_token_returns_401_without_exposing_secrets(
     secure_client: SyncASGIClient,
 ) -> None:
     response = secure_client.post("/incidents", json=incident_payload())
 
     assert response.status_code == 401
-    assert response.json() == {"detail": "Invalid or missing API key"}
-    assert response.headers["www-authenticate"] == "X-API-Key"
-    assert WRITER_KEY not in response.text
+    assert response.json() == {"detail": "Missing or invalid bearer token"}
+    assert response.headers["www-authenticate"] == "Bearer"
+    assert PASSWORDS["writer"] not in response.text
 
 
-def test_invalid_api_key_returns_401_without_echoing_the_key(
-    secure_client: SyncASGIClient,
-) -> None:
-    invalid_key = "wrong-key-0123456789"
+def test_invalid_token_returns_401(secure_client: SyncASGIClient) -> None:
     response = secure_client.post(
         "/incidents",
         json=incident_payload(),
-        headers=auth(invalid_key),
+        headers={"Authorization": "Bearer invalid-token"},
     )
 
     assert response.status_code == 401
-    assert invalid_key not in response.text
+    assert response.json() == {"detail": "Missing or invalid bearer token"}
+
+
+def test_invalid_login_returns_401(secure_client: SyncASGIClient) -> None:
+    response = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": "wrong-password"},
+    )
+
+    assert response.status_code == 401
 
 
 def test_reader_can_read_but_cannot_write(
@@ -141,12 +167,12 @@ def test_reader_can_read_but_cannot_write(
 
     fetched = secure_client.get(
         f"/incidents/{incident_id}",
-        headers=auth(READER_KEY),
+        headers=auth(secure_client, "reader"),
     )
     denied = secure_client.post(
         "/incidents",
         json=incident_payload(),
-        headers=auth(READER_KEY),
+        headers=auth(secure_client, "reader"),
     )
 
     assert fetched.status_code == 200
@@ -157,22 +183,23 @@ def test_reader_can_read_but_cannot_write(
 def test_writer_can_create_analyze_and_review_but_not_admin_routes(
     secure_client: SyncASGIClient,
 ) -> None:
-    incident_id = create_incident(secure_client, WRITER_KEY)
+    incident_id = create_incident(secure_client, "writer")
+    writer_auth = auth(secure_client, "writer")
 
     analyzed = secure_client.post(
         f"/incidents/{incident_id}/analysis",
-        headers=auth(WRITER_KEY),
+        headers=writer_auth,
     )
     reviewed = secure_client.patch(
         f"/incidents/{incident_id}/triage",
         json={"review_comment": "Revisado."},
-        headers=auth(WRITER_KEY),
+        headers=writer_auth,
     )
-    audit_denied = secure_client.get("/audit", headers=auth(WRITER_KEY))
+    audit_denied = secure_client.get("/audit", headers=writer_auth)
     retention_denied = secure_client.post(
         "/admin/retention",
         json={"dry_run": True},
-        headers=auth(WRITER_KEY),
+        headers=writer_auth,
     )
 
     assert analyzed.status_code == 200
@@ -184,13 +211,13 @@ def test_writer_can_create_analyze_and_review_but_not_admin_routes(
 def test_admin_can_list_audit_events_without_sensitive_content(
     secure_client: SyncASGIClient,
 ) -> None:
-    incident_id = create_incident(secure_client, WRITER_KEY)
+    incident_id = create_incident(secure_client, "writer")
     secure_client.post(
         f"/incidents/{incident_id}/analysis",
-        headers=auth(WRITER_KEY),
+        headers=auth(secure_client, "writer"),
     )
 
-    response = secure_client.get("/audit", headers=auth(ADMIN_KEY))
+    response = secure_client.get("/audit", headers=auth(secure_client, "admin"))
 
     assert response.status_code == 200
     body = response.json()
@@ -211,13 +238,12 @@ def test_admin_can_list_audit_events_without_sensitive_content(
         }
     assert "confidencial" not in response.text
     assert "sensibles" not in response.text
-    assert WRITER_KEY not in response.text
-    assert ADMIN_KEY not in response.text
+    assert PASSWORDS["writer"] not in response.text
 
     filtered = secure_client.get(
         "/audit",
         params={"action": "incident.create"},
-        headers=auth(ADMIN_KEY),
+        headers=auth(secure_client, "admin"),
     )
     assert filtered.status_code == 200
     assert filtered.json()["total"] == 1
@@ -230,7 +256,7 @@ def test_admin_retention_dry_run_is_audited(
     response = secure_client.post(
         "/admin/retention",
         json={"dry_run": True},
-        headers=auth(ADMIN_KEY),
+        headers=auth(secure_client, "admin"),
     )
 
     assert response.status_code == 200
@@ -240,7 +266,7 @@ def test_admin_retention_dry_run_is_audited(
     audit = secure_client.get(
         "/audit",
         params={"action": "retention.run"},
-        headers=auth(ADMIN_KEY),
+        headers=auth(secure_client, "admin"),
     )
     assert audit.status_code == 200
     assert audit.json()["total"] == 1
@@ -256,7 +282,7 @@ def test_retention_rejects_non_positive_days(
     response = secure_client.post(
         "/admin/retention",
         json={"dry_run": True, "incidents_days": 0},
-        headers=auth(ADMIN_KEY),
+        headers=auth(secure_client, "admin"),
     )
 
     assert response.status_code == 422

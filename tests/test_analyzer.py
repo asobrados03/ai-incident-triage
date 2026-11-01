@@ -3,13 +3,13 @@ import json
 import httpx
 import pytest
 
-from app.analyzers.core import (
+from backend.analyzers.core import (
     AnalyzerProviderUnavailableError,
     AnalyzerResponseError,
     AnalyzerTimeoutError,
     OllamaAnalyzer,
 )
-from app.schemas import IncidentCreate
+from backend.schemas import IncidentCreate
 
 
 def incident() -> IncidentCreate:
@@ -56,7 +56,7 @@ def test_ollama_analyzer_parses_structured_result() -> None:
     result = analyzer.analyze(incident())
 
     assert result.category == "bug"
-    assert result.affected_components == ["frontend"]
+    assert result.affected_components == {"frontend"}
     assert result.confidence == "high"
 
 

@@ -1,5 +1,5 @@
-from app.analyzers.core import FakeAnalyzer
-from app.schemas import IncidentCreate, TriageResult
+from backend.analyzers.core import FakeAnalyzer
+from backend.schemas import IncidentCreate, TriageResult
 
 
 def analyze(**overrides) -> TriageResult:
@@ -68,7 +68,7 @@ def test_feature_request_is_low_severity_and_low_priority() -> None:
     assert result.category == "feature"
     assert result.severity == "low"
     assert result.priority == "low"
-    assert result.missing_information == []
+    assert result.missing_information == set()
 
 
 def test_documentation_issue_is_low_severity_but_medium_priority() -> None:
@@ -96,13 +96,13 @@ def test_uncertain_performance_issue_requests_observability_data() -> None:
     assert result.category == "performance"
     assert result.severity == "medium"
     assert result.priority == "medium"
-    assert result.missing_information == [
+    assert result.missing_information == {
         "latencia observada",
         "porcentaje de peticiones afectadas",
         "momento en que ocurre",
         "identificador de correlación",
         "logs o métricas disponibles",
-    ]
+    }
     assert result.confidence == "medium"
 
 

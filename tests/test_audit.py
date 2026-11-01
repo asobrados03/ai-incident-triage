@@ -4,13 +4,13 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.analyzers.core import AnalyzerProviderUnavailableError, FakeAnalyzer
-from app.auth import Principal, Role
-from app.infrastructure.database import Base
-from app.domain.models import IncidentSeverity
-from app.infrastructure.repositories import AuditRepository, IncidentRepository
-from app.schemas import IncidentCreate, TriageReviewRequest
-from app.services.incident import IncidentService
+from backend.analyzers.core import AnalyzerProviderUnavailableError, FakeAnalyzer
+from backend.auth import Principal, Role
+from backend.infrastructure.database import Base
+from backend.domain.models import IncidentSeverity
+from backend.infrastructure.repositories import AuditRepository, IncidentRepository
+from backend.schemas import IncidentCreate, TriageReviewRequest
+from backend.services.incident import IncidentService
 
 
 @pytest.fixture

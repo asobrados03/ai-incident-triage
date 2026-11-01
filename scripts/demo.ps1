@@ -1,13 +1,19 @@
 param(
     [string]$BaseUrl = "http://127.0.0.1:8000",
-    [string]$ApiKey = ""
+    [string]$Username = "",
+    [string]$Password = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $auth = @()
-if ($ApiKey) {
-    $auth = @("-H", "X-API-Key: $ApiKey")
+if ($Username -and $Password) {
+    $loginPayload = @{ username = $Username; password = $Password } |
+        ConvertTo-Json -Compress
+    $login = curl.exe -sS -X POST "$BaseUrl/auth/login" `
+        -H "Content-Type: application/json" `
+        --data-raw $loginPayload | ConvertFrom-Json
+    $auth = @("-H", "Authorization: Bearer $($login.access_token)")
 }
 
 Write-Host "1. Health"

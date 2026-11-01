@@ -5,17 +5,17 @@ import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.auth import Principal, Role
-from app.infrastructure.config import Settings, validate_runtime_settings
-from app.infrastructure.database import Base
-from app.infrastructure.orm_models import (
+from backend.auth import Principal, Role
+from backend.infrastructure.config import Settings, validate_runtime_settings
+from backend.infrastructure.database import Base
+from backend.infrastructure.orm_models import (
     AuditLogORM,
     IncidentORM,
     TriageResultORM,
     TriageReviewORM,
 )
-from app.infrastructure.repositories import AuditRepository, RetentionRepository
-from app.services.retention import RetentionService
+from backend.infrastructure.repositories import AuditRepository, RetentionRepository
+from backend.services.retention import RetentionService
 
 
 @pytest.fixture
@@ -251,7 +251,7 @@ def test_retention_rejects_non_positive_day_overrides(session: Session) -> None:
     [
         Settings(retention_days=0),
         Settings(audit_retention_days=0),
-        Settings(api_keys="invalid-configuration"),
+        Settings(auth_users="invalid-configuration"),
     ],
 )
 def test_invalid_security_settings_are_rejected(settings: Settings) -> None:

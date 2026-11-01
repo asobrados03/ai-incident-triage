@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 import sys
 
-from app import evaluation as evaluation_module
-from app.analyzers.core import FakeAnalyzer
-from app.evaluation import (
+from backend import evaluation as evaluation_module
+from backend.analyzers.core import FakeAnalyzer
+from backend.evaluation import (
     DEFAULT_HOLDOUT_DATASET,
     DEFAULT_HOLDOUT_V2_DATASET,
     DEFAULT_REGRESSION_DATASET,
@@ -18,7 +18,7 @@ from app.evaluation import (
     print_outcomes,
     print_summary,
 )
-from app.schemas import IncidentCreate, TriageResult
+from backend.schemas import IncidentCreate, TriageResult
 
 
 def _triage(
