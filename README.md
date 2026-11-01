@@ -87,7 +87,9 @@ npm install
 npm run dev
 ```
 
-La URL del backend se puede configurar con `VITE_API_URL`; si se omite, el cliente usa el mismo origen.
+La URL del backend se puede configurar con `VITE_API_URL`; si se omite durante `npm run dev`, Vite hace proxy
+de las rutas de la API hacia `http://127.0.0.1:8000`. Para un frontend servido fuera de Vite, define
+`VITE_API_URL` con el origen del backend (por ejemplo, `http://127.0.0.1:8000`, sin añadir `/api`).
 La base incluye Vite + React + TypeScript, Tailwind, componentes compatibles con shadcn/ui, TanStack Query,
 React Router, react-hook-form, zod, Vitest, Testing Library y MSW.
 

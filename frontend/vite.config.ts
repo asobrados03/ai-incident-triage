@@ -12,5 +12,13 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      "/auth": "http://127.0.0.1:8000",
+      "/health": "http://127.0.0.1:8000",
+      "/incidents": "http://127.0.0.1:8000",
+      "/review-metrics": "http://127.0.0.1:8000",
+      "/audit": "http://127.0.0.1:8000",
+      "/admin": "http://127.0.0.1:8000",
+    },
   },
 });
