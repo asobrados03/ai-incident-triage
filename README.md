@@ -1,9 +1,9 @@
 # Sistema inteligente de triaje de incidencias
 
 API pequeña para registrar incidencias, generar una propuesta de triaje y permitir que una persona la acepte o la
-corrija. El proyecto está pensado como MVP demostrable para portfolio y entrevista: mantiene separadas la entrada,
-el análisis, la persistencia y la revisión humana, y añade autenticación por API key, autorización por roles,
-auditoría y retención de datos sin incorporar todavía UI, RAG ni agentes.
+corrija. El proyecto es un MVP demostrable: mantiene separadas la entrada, el análisis, la persistencia y la
+revisión humana, y añade autenticación por API key, autorización por roles, auditoría y retención de datos. No
+incluye todavía una UI, RAG ni agentes.
 
 ## Qué resuelve
 
@@ -74,8 +74,19 @@ python -m pip install -e ".[test]"
 uvicorn app.main:app --reload
 ```
 
-La API queda en `http://127.0.0.1:8000`; OpenAPI está disponible en `/docs`. SQLite usa por defecto una ruta
-absoluta en la raíz del proyecto para no depender del directorio desde el que se arranque Uvicorn.
+La API queda en `http://127.0.0.1:8000`; la documentación OpenAPI está disponible en `/docs` y el health check
+público en `/health`. SQLite usa por defecto una ruta absoluta en la raíz del proyecto (`incidents.db`) para no
+depender del directorio desde el que se arranque Uvicorn. El backend de análisis por defecto es `fake`, por lo que
+este arranque no necesita Ollama.
+
+Para comprobar la instalación:
+
+```powershell
+python -m pytest -q
+```
+
+La suite usa el backend determinista y no realiza llamadas a Ollama. La misma orden es la que ejecuta CI después de
+instalar el extra `test`.
 
 ## Configuración
 
@@ -524,25 +535,20 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 
 ## Limitaciones y mejoras futuras
 
-- Dataset pequeño y etiquetado manualmente; ampliar casos, revisar el acuerdo entre etiquetadores y añadir más
-  ejemplos por clase antes de interpretar las métricas como una estimación estable.
-- El `FakeAnalyzer` sigue siendo un motor de reglas, no comprensión semántica. Se corrigieron los fallos de seguridad
-  indirecta (“datos de otra cuenta”), sinónimos como “va más despacio”, elementos de UI que “no aparecen” y
-  credenciales que también contienen `error`/`falla`. Quedan variantes literales (“no está disponible” frente a “no
-  disponible”), giros como “pierde cambios” sin “se”, documentación que menciona configuración y la confianza en bugs
-  sin señal léxica clara. El caso CORS del conjunto de regresión sigue etiquetado como `medium` y el motor lo marca
-  como `high`: es una ambigüedad de política, no un fallo evidente. No se ajustó para forzar una puntuación
-  artificialmente perfecta.
-- `missing_information` se puntúa con listas exactas además de micro-F1; con pocos casos positivos, una métrica de 1.0
-  no debe interpretarse como calidad de producción.
-- Añadir análisis de errores por clase y calibración de confianza con más volumen: ya existen ambos en el JSON y en
-  `--summary`, pero con 64 casos repartidos en varios conjuntos siguen siendo señales, no estimaciones estables.
-- Incorporar PostgreSQL y migraciones al requerir despliegue multiinstancia. `create_all` no sustituye migraciones
-  cuando cambien tablas existentes.
-- La autenticación es estática por API key en variables de entorno: falta rotación, caducidad, gestión por usuario,
-  rate limiting y TLS terminado en un proxy. Las claves deben provisionarse fuera del repositorio.
-- La auditoría vive en la misma SQLite y no es un sumidero inmutable externo. Si la base de datos no está disponible,
-  tampoco lo está la auditoría.
-- La retención hace borrado físico y no conoce copias de seguridad, bloqueos legales ni periodos de gracia. La
+- La evaluación usa conjuntos pequeños y etiquetados manualmente: ampliar casos, revisar el acuerdo entre
+  etiquetadores y validar en un holdout nuevo antes de interpretar las métricas como calidad de producción.
+- El `FakeAnalyzer` es un motor de reglas determinista, no comprensión semántica. Todavía puede fallar con
+  formulaciones literales o ambiguas y su confianza no está calibrada con suficiente volumen; el benchmark de Ollama
+  incluido tampoco justifica usarlo como backend por defecto.
+- `missing_information` se evalúa con listas exactas además de micro-F1. Con pocos casos positivos, una métrica alta no
+  garantiza que las preguntas sugeridas sean útiles en incidencias reales.
+- La persistencia usa SQLite y `create_all`: para un despliegue multiinstancia harán falta PostgreSQL, migraciones,
+  copias de seguridad y una estrategia de operación que no forma parte de este MVP.
+- La autenticación es estática mediante API keys en variables de entorno. Faltan rotación, caducidad, gestión por
+  usuario, rate limiting y terminación TLS en un proxy; las claves deben provisionarse fuera del repositorio.
+- La auditoría comparte la misma base de datos que la aplicación y no es un sumidero inmutable externo. Si SQLite no
+  está disponible, tampoco lo está la auditoría.
+- La retención hace borrado físico y no gestiona copias de seguridad, bloqueos legales ni periodos de gracia; su
   ejecución periódica debe programarse fuera de la API (cron, Task Scheduler o similar).
-- Añadir UI y revisión humana enriquecida después de estabilizar el contrato API.
+- Añadir una UI para consulta y revisión humana enriquecida sigue siendo una mejora futura válida después de estabilizar
+  el contrato API.
