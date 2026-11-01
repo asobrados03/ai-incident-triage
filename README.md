@@ -47,15 +47,22 @@ flowchart LR
 
 Capas:
 
-- `app/main.py`: rutas HTTP, dependencias y traducción de errores a códigos HTTP.
+- `app/main.py`: creación de la aplicación y ciclo de vida; las rutas y dependencias están en `app/api/`.
+- `app/api/routes.py`: controladores HTTP, validación mediante esquemas y traducción de errores a HTTP.
+- `app/api/dependencies.py`: composición de servicios, repositorios y analizadores para FastAPI.
 - `app/auth.py`: roles, almacén de API keys y dependencias de autenticación/autorización.
-- `app/service.py`: transiciones de estado y casos de uso.
-- `app/repository.py`: consultas y persistencia SQLAlchemy, incluida la auditoría y la retención.
-- `app/orm_models.py`: tablas `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
-- `app/retention.py`: cálculo de cortes, purga controlada y CLI `python -m app.retention`.
-- `app/analyzer.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
+- `app/services/incident.py`: transiciones de estado y casos de uso de incidencias.
+- `app/services/retention.py`: caso de uso de retención y CLI `python -m app.retention`.
+- `app/infrastructure/repositories.py`: consultas y persistencia SQLAlchemy, incluida auditoría y retención.
+- `app/infrastructure/orm_models.py`: tablas `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
+- `app/infrastructure/config.py` y `app/infrastructure/database.py`: configuración, engine, sesiones y creación de tablas.
+- `app/domain/models.py`: enums y estados del dominio.
+- `app/analyzers/core.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
 - `app/schemas.py`: contratos Pydantic públicos.
-- `app/evaluation.py`: evaluación offline independiente de FastAPI.
+- `app/evaluation/runner.py`: evaluación offline independiente de FastAPI.
+
+Los módulos antiguos (`app/analyzer.py`, `app/service.py`, `app/repository.py`, etc.) se conservan como fachadas
+de compatibilidad para imports existentes; la implementación vive en las capas anteriores.
 
 ## Instalación y ejecución local
 

@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader
 from pydantic import SecretStr
 
-from app.config import Settings, get_settings
+from app.infrastructure.config import Settings, get_settings
 
 
 MIN_API_KEY_LENGTH = 16

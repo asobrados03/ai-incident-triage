@@ -12,8 +12,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from app.analyzer import FakeAnalyzer, IncidentAnalyzer, OllamaAnalyzer
-from app.models import (
+from app.analyzers.core import FakeAnalyzer, IncidentAnalyzer, OllamaAnalyzer
+from app.domain.models import (
     AnalysisConfidence,
     IncidentCategory,
     IncidentPriority,
@@ -22,22 +22,22 @@ from app.models import (
 from app.schemas import IncidentCreate, TriageResult
 
 DEFAULT_DATASET = (
-    Path(__file__).resolve().parent.parent / "eval" / "data" / "incidents.json"
+    Path(__file__).resolve().parents[2] / "eval" / "data" / "incidents.json"
 )
 DEFAULT_HOLDOUT_DATASET = (
-    Path(__file__).resolve().parent.parent
+    Path(__file__).resolve().parents[2]
     / "eval"
     / "data"
     / "incidents-holdout.json"
 )
 DEFAULT_HOLDOUT_V2_DATASET = (
-    Path(__file__).resolve().parent.parent
+    Path(__file__).resolve().parents[2]
     / "eval"
     / "data"
     / "incidents-holdout-v2.json"
 )
 DEFAULT_REGRESSION_DATASET = (
-    Path(__file__).resolve().parent.parent
+    Path(__file__).resolve().parents[2]
     / "eval"
     / "data"
     / "incidents-regression.json"
