@@ -1,9 +1,9 @@
 # Sistema inteligente de triaje de incidencias
 
-API pequeña para registrar incidencias, generar una propuesta de triaje y permitir que una persona la acepte o la
+API y frontend para registrar incidencias, generar una propuesta de triaje y permitir que una persona la acepte o la
 corrija. El proyecto es un MVP demostrable: mantiene separadas la entrada, el análisis, la persistencia y la
-revisión humana, y añade autenticación por API key, autorización por roles, auditoría y retención de datos. No
-incluye todavía una UI, RAG ni agentes.
+revisión humana, y añade autenticación mediante usuario y contraseña con JWT, autorización por roles, auditoría y
+retención de datos. No incluye todavía RAG ni agentes.
 
 ## Qué resuelve
 
@@ -13,7 +13,7 @@ incluye todavía una UI, RAG ni agentes.
 4. Guarda la propuesta estructurada (`category`, `severity`, `priority`, faltantes y confianza).
 5. Permite aceptar o corregir la propuesta con `PATCH /incidents/{id}/triage`.
 6. Conserva la propuesta original y almacena los valores finales revisados.
-7. Protege la API con API keys y roles `reader`, `writer` y `admin`.
+7. Protege la API con JWT y roles `reader`, `writer` y `admin`.
 8. Registra las acciones relevantes en una auditoría consultable sin contenido sensible.
 9. Purga incidencias y auditoría antiguas con dry-run, ejecución administrativa y traza del resultado.
 
@@ -50,7 +50,7 @@ Capas:
 - `backend/main.py`: creación de la aplicación y ciclo de vida; las rutas y dependencias están en `backend/api/`.
 - `backend/api/routes.py`: controladores HTTP, validación mediante esquemas y traducción de errores a HTTP.
 - `backend/api/dependencies.py`: composición de servicios, repositorios y analizadores para FastAPI.
-- `backend/auth.py`: roles, almacén de API keys y dependencias de autenticación/autorización.
+- `backend/auth.py`: usuarios, roles y dependencias de autenticación/autorización.
 - `backend/services/incident.py`: transiciones de estado y casos de uso de incidencias.
 - `backend/services/retention.py`: caso de uso de retención y CLI `python -m backend.services.retention`.
 - `backend/infrastructure/repositories.py`: consultas y persistencia SQLAlchemy, incluida auditoría y retención.
@@ -591,7 +591,7 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 > desarrollo, un holdout original, un conjunto de regresión y un holdout ciego escrito después de los cambios; además
 > puedo comparar fake frente a Ollama con deltas por caso, métrica y latencia. Sé que el fake no mide calidad de LLM y
 > que 12 casos son una muestra pequeña. Elegí SQLite para reducir el coste operativo del MVP, añadí límites, errores
-> explícitos, logs JSON sin contenido sensible, API keys con roles jerárquicos, auditoría sin datos sensibles,
+> explícitos, logs JSON sin contenido sensible, autenticación JWT con roles jerárquicos, auditoría sin datos sensibles,
 > retención con dry-run y CI/Docker para que la demo sea reproducible.”
 
 ## Limitaciones y mejoras futuras
