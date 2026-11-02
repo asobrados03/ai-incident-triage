@@ -596,20 +596,37 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 
 ## Limitaciones y mejoras futuras
 
-- La evaluación usa conjuntos pequeños y etiquetados manualmente: ampliar casos, revisar el acuerdo entre
-  etiquetadores y validar en un holdout nuevo antes de interpretar las métricas como calidad de producción.
-- El `FakeAnalyzer` es un motor de reglas determinista, no comprensión semántica. Todavía puede fallar con
-  formulaciones literales o ambiguas y su confianza no está calibrada con suficiente volumen; el benchmark de Ollama
-  incluido tampoco justifica usarlo como backend por defecto.
-- `missing_information` se evalúa con listas exactas además de micro-F1. Con pocos casos positivos, una métrica alta no
-  garantiza que las preguntas sugeridas sean útiles en incidencias reales.
-- La persistencia usa SQLite y `create_all`: para un despliegue multiinstancia harán falta PostgreSQL, migraciones,
-  copias de seguridad y una estrategia de operación que no forma parte de este MVP.
-- La autenticación es estática mediante API keys en variables de entorno. Faltan rotación, caducidad, gestión por
-  usuario, rate limiting y terminación TLS en un proxy; las claves deben provisionarse fuera del repositorio.
-- La auditoría comparte la misma base de datos que la aplicación y no es un sumidero inmutable externo. Si SQLite no
-  está disponible, tampoco lo está la auditoría.
-- La retención hace borrado físico y no gestiona copias de seguridad, bloqueos legales ni periodos de gracia; su
-  ejecución periódica debe programarse fuera de la API (cron, Task Scheduler o similar).
-- Añadir una UI para consulta y revisión humana enriquecida sigue siendo una mejora futura válida después de estabilizar
-  el contrato API.
+- **Calidad y cobertura del análisis:** la evaluación sigue basándose en conjuntos pequeños y etiquetados
+  manualmente. El holdout v2 tiene 12 casos, por lo que un solo fallo cambia la accuracy aproximadamente ocho puntos;
+  además, el conjunto de desarrollo se utilizó para ajustar las reglas. Hace falta ampliar los casos, medir el acuerdo
+  entre etiquetadores, incorporar ejemplos reales anonimizados y validar los cambios en un holdout nuevo o mediante
+  validación cruzada.
+- **Límites del `FakeAnalyzer`:** es un baseline de reglas determinista y explicable, no un sistema de comprensión
+  semántica. Puede fallar ante formulaciones nuevas, ambigüedad o señales de impacto implícitas, y su `confidence`
+  todavía no está calibrada con suficiente volumen. Deben añadirse reglas solo cuando estén respaldadas por datos y
+  regresiones, no por ajustar repetidamente el mismo holdout.
+- **Ollama no está listo para ser el backend por defecto:** en la comparación documentada, el modelo local obtuvo peor
+  resultado que el fake en severidad, prioridad, información faltante y confianza, además de una latencia de segundos
+  frente a milisegundos. La siguiente iteración debería definir una rúbrica explícita, limitar y validar
+  `missing_information`, añadir ejemplos al prompt y repetir la comparación con más modelos, casos y ejecuciones antes
+  de promoverlo.
+- **Utilidad de la revisión humana:** `missing_information` se evalúa con listas exactas y micro-F1, pero una coincidencia
+  de métricas no garantiza que las preguntas sean accionables. Conviene medir la utilidad de las preguntas, registrar
+  feedback de las personas revisoras y recalibrar las propuestas a partir de las correcciones acumuladas.
+- **Persistencia y operación:** SQLite y `create_all` simplifican el MVP local, pero un despliegue multiinstancia
+  necesitará PostgreSQL, migraciones versionadas, copias de seguridad verificadas, restauración probada y una estrategia
+  para concurrencia y observabilidad. La auditoría comparte la misma base de datos y no es un sumidero inmutable externo.
+- **Autenticación y exposición de la API:** el modelo actual usa credenciales estáticas en variables de entorno. Faltan
+  rotación y revocación de claves, gestión de usuarios, rate limiting, gestión centralizada de secretos, TLS en un proxy
+  y una política de sesiones más completa. La autenticación deshabilitada por defecto debe mantenerse limitada a
+  desarrollo local y tests.
+- **Retención y cumplimiento:** la purga hace borrado físico, ejecuta dry-run por defecto y debe programarse fuera de la
+  API. Todavía no cubre copias de seguridad, bloqueos legales, periodos de gracia, restauración selectiva ni una política
+  de clasificación y minimización de datos más amplia.
+- **Producto y observabilidad:** ya existe una UI inicial para bandeja, creación, detalle, revisión y métricas, pero
+  faltan flujos más completos de búsqueda, filtros avanzados, paginación, gestión de errores y accesibilidad. También
+  sería conveniente añadir métricas y trazas operativas sobre latencia, errores, uso de backends y tasa de correcciones,
+  sin registrar contenido sensible.
+- **Escalabilidad funcional:** RAG, agentes y automatizaciones no son necesarios para el contrato actual y aumentarían
+  el coste y la superficie de fallo. Solo deberían incorporarse después de estabilizar el contrato API, demostrar una
+  necesidad concreta y definir controles de privacidad, evaluación y revisión humana.
