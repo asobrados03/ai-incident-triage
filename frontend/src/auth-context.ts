@@ -13,7 +13,7 @@ export interface AuthContextValue {
   canWrite: boolean;
   isAdmin: boolean;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

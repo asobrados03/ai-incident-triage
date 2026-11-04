@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
 
 import { AppLayout } from "@/app";
 import { AuthProvider } from "@/auth";
@@ -104,5 +105,38 @@ describe("authentication and roles", () => {
     expect(await screen.findByText(/root · admin/)).toBeVisible();
     expect(screen.getByRole("link", { name: "Nueva" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Usuarios" })).toBeVisible();
+  });
+
+  it("revokes the token on logout, clears it and returns to login", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("triage-access-token", "session-token");
+    let logoutCalls = 0;
+    let authorization: string | null = null;
+    server.use(
+      http.get("*/auth/me", () =>
+        HttpResponse.json({ name: "root", role: "admin", authenticated: true }),
+      ),
+      http.post("*/auth/logout", ({ request }) => {
+        logoutCalls += 1;
+        authorization = request.headers.get("Authorization");
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+
+    renderWithProviders(
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<p>Bandeja</p>} />
+        </Route>
+        <Route path="/login" element={<p>Pantalla de acceso</p>} />
+      </Routes>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Salir" }));
+
+    expect(await screen.findByText("Pantalla de acceso")).toBeVisible();
+    expect(logoutCalls).toBe(1);
+    expect(authorization).toBe("Bearer session-token");
+    expect(localStorage.getItem("triage-access-token")).toBeNull();
   });
 });

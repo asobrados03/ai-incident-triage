@@ -113,8 +113,8 @@ Para comprobar la instalación:
 python -m pytest -q
 ```
 
-La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **136 tests backend** y
-**33 tests frontend** (7 archivos). Las validaciones completas son:
+La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **140 tests backend** y
+**34 tests frontend** (7 archivos). Las validaciones completas son:
 
 ```powershell
 python -m pytest -q
@@ -169,9 +169,13 @@ uvicorn backend.main:app --reload
 
 - `POST /auth/login` recibe `{"username":"soporte","password":"..."}` y devuelve un token Bearer más el usuario.
 - `GET /auth/me` devuelve `name`, `role` y `authenticated`. La UI lo usa para decidir qué acciones mostrar.
+- `POST /auth/logout` revoca el JWT del usuario autenticado y responde `204`. La UI lo llama al pulsar **Salir** y,
+  pase lo que pase, borra después el token local.
 - Las contraseñas se guardan con **Argon2id** y salt único; nunca se devuelven, registran ni auditan.
 - El JWT incluye `sub`, `role`, `ver`, `iat` y `exp`. `ver` es la versión de token del usuario.
 - Cambiar la contraseña incrementa `token_version`: los tokens anteriores dejan de valer.
+- El logout también incrementa `token_version`, de modo que invalida **todos** los JWT abiertos de ese usuario, no solo
+  el token usado para cerrar sesión. Es una decisión consciente para que un token robado no siga vivo hasta su `exp`.
 - Desactivar un usuario o cambiar su rol también se refleja de inmediato: cada petición revalida contra la BD.
 - Los roles son jerárquicos: `reader < writer < admin`.
 - Sin token o con token inválido la API devuelve `401`; con rol insuficiente, `403`.
@@ -182,7 +186,7 @@ uvicorn backend.main:app --reload
 
 | Rol | Permisos |
 |---|---|
-| `reader` | `GET /incidents`, `GET /incidents/{id}`, `GET /review-metrics`, `GET /auth/me` |
+| `reader` | `GET /incidents`, `GET /incidents/{id}`, `GET /review-metrics`, `GET /auth/me` y `POST /auth/logout` |
 | `writer` | Todo lo de `reader` más `POST /incidents`, `POST /incidents/{id}/analysis` y `PATCH /incidents/{id}/triage` |
 | `admin` | Todo lo anterior más `GET /audit`, `POST /admin/retention` y el CRUD de `/users` |
 
@@ -193,6 +197,8 @@ $login = curl.exe -sS -X POST http://127.0.0.1:8000/auth/login `
 curl.exe -i http://127.0.0.1:8000/incidents/{incident_id} `
   -H "Authorization: Bearer $($login.access_token)"
 curl.exe -i http://127.0.0.1:8000/auth/me `
+  -H "Authorization: Bearer $($login.access_token)"
+curl.exe -i -X POST http://127.0.0.1:8000/auth/logout `
   -H "Authorization: Bearer $($login.access_token)"
 ```
 

@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 
 from backend.analyzers.core import (
     AnalyzerConfigurationError,
@@ -97,6 +97,15 @@ def me(principal: Principal = Depends(get_principal)) -> PrincipalResponse:
         role=principal.role,
         authenticated=principal.authenticated,
     )
+
+
+@router.post("/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(
+    principal: Principal = Depends(get_principal),
+    user_service: UserService = Depends(get_user_service),
+) -> Response:
+    user_service.logout(principal)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/users", response_model=UserListPage)

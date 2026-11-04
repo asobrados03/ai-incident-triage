@@ -85,6 +85,25 @@ class UserService:
             token_version=record.token_version,
         )
 
+    def logout(self, principal: Principal) -> bool:
+        """Revoca los tokens del usuario autenticado.
+
+        Incrementa ``token_version``, de modo que cualquier JWT emitido antes
+        del logout deja de ser válido en la siguiente petición. Devuelve
+        ``False`` si el principal no corresponde a un usuario persistido.
+        """
+        record = self._repository.get_by_username(principal.name)
+        if record is None:
+            return False
+        self._repository.revoke_tokens(record)
+        self._record_audit(
+            principal,
+            "user.logout",
+            record.id,
+            {"revoked": "all_sessions"},
+        )
+        return True
+
     def get(self, user_id: UUID) -> UserResponse:
         record = self._repository.get(user_id)
         if record is None:

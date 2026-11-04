@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.auth import BootstrapUser, Role
+from backend.auth import parse_auth_users
 from backend.infrastructure.config import Settings, get_settings
 from backend.infrastructure.database import Base, get_db_session
 from backend.infrastructure.repositories import UserRepository
@@ -78,15 +78,9 @@ def secure_client(tmp_path) -> Iterator[SyncASGIClient]:
     )
     seed_session = test_session_factory()
     try:
+        # Mismo camino que el arranque real: AUTH_USERS -> parser -> bootstrap.
         UserService(UserRepository(seed_session)).bootstrap(
-            tuple(
-                BootstrapUser(
-                    username=name,
-                    role=Role(name),
-                    password=password,
-                )
-                for name, password in PASSWORDS.items()
-            ),
+            parse_auth_users(AUTH_USERS),
         )
     finally:
         seed_session.close()
@@ -147,6 +141,74 @@ def test_login_issues_bearer_token(secure_client: SyncASGIClient) -> None:
     assert response.status_code == 200
     assert response.json()["token_type"] == "bearer"
     assert response.json()["access_token"]
+
+
+def test_full_cycle_bootstrap_login_request_password_change_and_revocation(
+    secure_client: SyncASGIClient,
+) -> None:
+    """Ciclo completo de autenticación sobre la app ASGI real.
+
+    bootstrap -> login -> petición con token -> cambio de contraseña ->
+    token invalidado.
+    """
+    # 1. Bootstrap: el fixture sembró AUTH_USERS por el mismo camino que el arranque.
+    admin_auth = auth(secure_client, "admin")
+    listed = secure_client.get("/users", headers=admin_auth)
+    assert listed.status_code == 200
+    users = listed.json()["items"]
+    assert {"reader", "writer", "admin"} <= {item["username"] for item in users}
+    writer_id = next(item["id"] for item in users if item["username"] == "writer")
+
+    # 2. Login con la contraseña sembrada.
+    login = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": PASSWORDS["writer"]},
+    )
+    assert login.status_code == 200
+    writer_auth = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    # 3. El token identifica al usuario y permite operar según su rol.
+    me = secure_client.get("/auth/me", headers=writer_auth)
+    assert me.status_code == 200
+    assert me.json() == {
+        "name": "writer",
+        "role": "writer",
+        "authenticated": True,
+    }
+    created = secure_client.post(
+        "/incidents",
+        json=incident_payload(),
+        headers=writer_auth,
+    )
+    assert created.status_code == 201
+
+    # 4. Un admin cambia la contraseña: token_version se incrementa.
+    new_password = "writer-new-password-0123456789"
+    changed = secure_client.patch(
+        f"/users/{writer_id}",
+        json={"password": new_password},
+        headers=admin_auth,
+    )
+    assert changed.status_code == 200
+
+    # 5. El token emitido antes del cambio deja de ser válido de inmediato.
+    assert secure_client.get("/auth/me", headers=writer_auth).status_code == 401
+    assert secure_client.get("/incidents", headers=writer_auth).status_code == 401
+
+    # 6. La contraseña anterior ya no autentica; la nueva emite un token válido.
+    old_login = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": PASSWORDS["writer"]},
+    )
+    new_login = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": new_password},
+    )
+    assert old_login.status_code == 401
+    assert new_login.status_code == 200
+
+    refreshed = {"Authorization": f"Bearer {new_login.json()['access_token']}"}
+    assert secure_client.get("/auth/me", headers=refreshed).status_code == 200
 
 
 def test_missing_token_returns_401_without_exposing_secrets(
@@ -448,6 +510,40 @@ def test_password_change_revokes_previous_tokens(
     )
     assert old_login.status_code == 401
     assert new_login.status_code == 200
+
+
+def test_logout_revokes_the_issued_token(
+    secure_client: SyncASGIClient,
+) -> None:
+    headers = auth(secure_client, "reader")
+    assert secure_client.get("/auth/me", headers=headers).status_code == 200
+
+    response = secure_client.post("/auth/logout", headers=headers)
+
+    assert response.status_code == 204
+    assert secure_client.get("/auth/me", headers=headers).status_code == 401
+
+    # El usuario puede volver a autenticarse y recibe un token nuevo.
+    new_headers = auth(secure_client, "reader")
+    assert secure_client.get("/auth/me", headers=new_headers).status_code == 200
+
+
+def test_logout_revokes_all_open_sessions_of_the_user(
+    secure_client: SyncASGIClient,
+) -> None:
+    first_session = auth(secure_client, "reader")
+    second_session = auth(secure_client, "reader")
+
+    assert secure_client.post("/auth/logout", headers=first_session).status_code == 204
+
+    assert secure_client.get("/auth/me", headers=first_session).status_code == 401
+    assert secure_client.get("/auth/me", headers=second_session).status_code == 401
+
+
+def test_logout_requires_a_valid_token(
+    secure_client: SyncASGIClient,
+) -> None:
+    assert secure_client.post("/auth/logout").status_code == 401
 
 
 def test_deactivation_revokes_access(

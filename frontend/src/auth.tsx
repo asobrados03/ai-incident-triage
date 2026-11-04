@@ -57,10 +57,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStatus("authenticated");
   }, []);
 
-  const logout = useCallback(() => {
-    clearAccessToken();
-    setPrincipal(null);
-    setStatus("unauthenticated");
+  const logout = useCallback(async () => {
+    try {
+      // Revoca el JWT en el backend antes de borrar el token local.
+      await apiClient.logout();
+    } catch {
+      // El cierre de sesión local no debe depender de la disponibilidad del backend.
+    } finally {
+      clearAccessToken();
+      setPrincipal(null);
+      setStatus("unauthenticated");
+    }
   }, []);
 
   const value = useMemo<AuthContextValue>(() => {

@@ -96,6 +96,7 @@ export const apiClient = {
       body: JSON.stringify({ username, password }),
     }),
   me: (signal?: AbortSignal) => request<PrincipalResponse>("/auth/me", {}, signal),
+  logout: () => request<void>("/auth/logout", { method: "POST" }),
   listUsers: (params: { limit?: number; offset?: number } = {}, signal?: AbortSignal) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {

@@ -122,6 +122,12 @@ class UserRepository:
         record.last_login_at = datetime.now(timezone.utc)
         self._session.commit()
 
+    def revoke_tokens(self, record: UserORM) -> None:
+        """Incrementa la versión de token para invalidar todos los JWT emitidos."""
+        record.token_version += 1
+        record.updated_at = datetime.now(timezone.utc)
+        self._session.commit()
+
     @staticmethod
     def to_response(record: UserORM) -> UserResponse:
         return UserResponse(
