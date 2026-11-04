@@ -1,13 +1,20 @@
+import jwt
 import pytest
 
 from backend.auth import (
+    BootstrapUser,
     Principal,
     Role,
     create_access_token,
-    get_auth_user_store,
+    hash_password,
     parse_auth_users,
+    verify_password,
 )
-from backend.infrastructure.config import Settings, get_cors_origins, validate_runtime_settings
+from backend.infrastructure.config import (
+    Settings,
+    get_cors_origins,
+    validate_runtime_settings,
+)
 
 
 VALID_READER_PASSWORD = "reader-password-0123456789"
@@ -19,25 +26,47 @@ AUTH_USERS = (
 JWT_SECRET = "test-jwt-secret-that-is-long-enough-123456"
 
 
-def test_empty_auth_users_disable_authentication() -> None:
-    store = parse_auth_users("")
-
-    assert not store.enabled
+def test_empty_auth_users_produce_no_bootstrap_users() -> None:
+    assert parse_auth_users("") == ()
 
 
-def test_parse_auth_users_authenticates_each_role() -> None:
-    store = parse_auth_users(AUTH_USERS)
+def test_parse_auth_users_returns_bootstrap_entries() -> None:
+    users = parse_auth_users(AUTH_USERS)
 
-    assert store.enabled
-    assert store.authenticate("reader", VALID_READER_PASSWORD) == Principal(
-        name="reader",
-        role=Role.READER,
+    assert users == (
+        BootstrapUser(
+            username="reader",
+            role=Role.READER,
+            password=VALID_READER_PASSWORD,
+        ),
+        BootstrapUser(
+            username="admin",
+            role=Role.ADMIN,
+            password=VALID_ADMIN_PASSWORD,
+        ),
     )
-    assert store.authenticate("admin", VALID_ADMIN_PASSWORD) == Principal(
-        name="admin",
-        role=Role.ADMIN,
-    )
-    assert store.authenticate("reader", "wrong-password") is None
+
+
+def test_passwords_are_hashed_with_argon2_and_unique_salts() -> None:
+    first = hash_password(VALID_READER_PASSWORD)
+    second = hash_password(VALID_READER_PASSWORD)
+
+    assert first.startswith("$argon2")
+    assert first != second
+    assert VALID_READER_PASSWORD not in first
+    assert verify_password(VALID_READER_PASSWORD, first)
+    assert verify_password(VALID_READER_PASSWORD, second)
+    assert not verify_password("wrong-password", first)
+
+
+def test_verify_password_rejects_invalid_hashes() -> None:
+    assert not verify_password(VALID_READER_PASSWORD, None)
+    assert not verify_password(VALID_READER_PASSWORD, "not-a-valid-hash")
+
+
+def test_short_passwords_are_rejected() -> None:
+    with pytest.raises(ValueError):
+        hash_password("short")
 
 
 def test_settings_repr_does_not_expose_auth_secrets() -> None:
@@ -51,7 +80,7 @@ def test_settings_repr_does_not_expose_auth_secrets() -> None:
     assert VALID_ADMIN_PASSWORD not in str(settings)
 
 
-def test_jwt_token_contains_authenticated_principal() -> None:
+def test_jwt_token_contains_versioned_principal() -> None:
     settings = Settings(
         auth_users=AUTH_USERS,
         jwt_secret=JWT_SECRET,
@@ -60,9 +89,23 @@ def test_jwt_token_contains_authenticated_principal() -> None:
     token = create_access_token(
         Principal(name="reader", role=Role.READER),
         settings,
+        token_version=3,
     )
-    assert isinstance(token, str)
-    assert len(token.split(".")) == 3
+    payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+
+    assert payload["sub"] == "reader"
+    assert payload["role"] == "reader"
+    assert payload["ver"] == 3
+    assert "iat" in payload
+    assert payload["exp"] > payload["iat"]
+
+
+def test_token_creation_requires_a_long_secret() -> None:
+    with pytest.raises(ValueError):
+        create_access_token(
+            Principal(name="reader", role=Role.READER),
+            Settings(jwt_secret="too-short"),
+        )
 
 
 def test_roles_are_hierarchical() -> None:
@@ -85,7 +128,9 @@ def test_roles_are_hierarchical() -> None:
         "unsupported:owner:0123456789abcdef",
         ":reader:0123456789abcdef",
         "reader:reader:",
-        "duplicate:reader:one,duplicate:admin:two",
+        "duplicate:reader:0123456789abcdef,duplicate:admin:0123456789abcdef",
+        "ab:reader:0123456789abcdef",
+        "reader:reader:short",
     ],
 )
 def test_invalid_auth_users_configuration_is_rejected(raw: str) -> None:
@@ -96,14 +141,11 @@ def test_invalid_auth_users_configuration_is_rejected(raw: str) -> None:
 def test_jwt_configuration_requires_a_long_secret() -> None:
     with pytest.raises(ValueError):
         validate_runtime_settings(
-            Settings(auth_users="reader:reader:password", jwt_secret="too-short"),
+            Settings(auth_users=AUTH_USERS, jwt_secret="too-short"),
         )
 
 
-def test_cors_rejects_wildcard() -> None:
+def test_cors_rejects_defaults() -> None:
     with pytest.raises(ValueError):
         get_cors_origins("*")
-
-
-def test_cors_defaults_to_local_frontend() -> None:
     assert get_cors_origins("http://localhost:5173") == ["http://localhost:5173"]

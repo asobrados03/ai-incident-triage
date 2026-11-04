@@ -2,8 +2,8 @@
 
 API y frontend para registrar incidencias, generar una propuesta de triaje y permitir que una persona la acepte o la
 corrija. El proyecto es un MVP demostrable: mantiene separadas la entrada, el análisis, la persistencia y la
-revisión humana, y añade autenticación mediante usuario y contraseña con JWT, autorización por roles, auditoría y
-retención de datos. No incluye todavía RAG ni agentes.
+revisión humana, y añade autenticación con usuarios persistidos y contraseñas Argon2id, JWT versionados, autorización
+por roles, gestión administrativa de usuarios, auditoría y retención de datos. No incluye todavía RAG ni agentes.
 
 ## Qué resuelve
 
@@ -11,11 +11,12 @@ retención de datos. No incluye todavía RAG ni agentes.
 2. La persiste en SQLite y la deja en estado `created`.
 3. Ejecuta un analizador explícito con `POST /incidents/{id}/analysis`.
 4. Guarda la propuesta estructurada (`category`, `severity`, `priority`, faltantes y confianza).
-5. Permite aceptar o corregir la propuesta con `PATCH /incidents/{id}/triage`.
+5. Permite aceptar o corregir la propuesta con `PATCH /incidents/{id}/triage`, dejando checklist y comentario.
 6. Conserva la propuesta original y almacena los valores finales revisados.
-7. Protege la API con JWT y roles `reader`, `writer` y `admin`.
-8. Registra las acciones relevantes en una auditoría consultable sin contenido sensible.
-9. Purga incidencias y auditoría antiguas con dry-run, ejecución administrativa y traza del resultado.
+7. Protege la API con JWT y roles `reader`, `writer` y `admin`; la UI oculta las acciones no permitidas.
+8. Gestiona usuarios y roles desde la API y la UI, con guardas para no quedarse sin administradores.
+9. Registra las acciones relevantes en una auditoría consultable sin contenido sensible.
+10. Purga incidencias y auditoría antiguas con dry-run, ejecución administrativa y traza del resultado.
 
 Estados principales: `created → analyzing → analyzed → reviewed`. Si el análisis falla, el estado es
 `analysis_failed`.
@@ -24,8 +25,11 @@ Estados principales: `created → analyzing → analyzed → reviewed`. Si el an
 
 ```mermaid
 flowchart LR
-    Client[Cliente HTTP / demo PowerShell] --> Auth[JWT Bearer + roles]
+    Client[Cliente HTTP / UI / demo PowerShell] --> Auth[JWT Bearer + roles]
+    Auth --> Users[(users)]
     Auth --> API[FastAPI routers]
+    API --> UsersAPI[CRUD /users solo admin]
+    UsersAPI --> Users
     API --> Service[IncidentService]
     Service --> Repo[IncidentRepository]
     Repo --> SQLite[(SQLite incidents.db)]
@@ -50,12 +54,13 @@ Capas:
 - `backend/main.py`: creación de la aplicación y ciclo de vida; las rutas y dependencias están en `backend/api/`.
 - `backend/api/routes.py`: controladores HTTP, validación mediante esquemas y traducción de errores a HTTP.
 - `backend/api/dependencies.py`: composición de servicios, repositorios y analizadores para FastAPI.
-- `backend/auth.py`: usuarios, roles y dependencias de autenticación/autorización.
+- `backend/auth.py`: roles, Argon2id, emisión/validación de JWT y dependencias de autenticación/autorización.
 - `backend/services/incident.py`: transiciones de estado y casos de uso de incidencias.
+- `backend/services/users.py`: bootstrap, login, CRUD de usuarios y guardas del último administrador.
 - `backend/services/retention.py`: caso de uso de retención y CLI `python -m backend.services.retention`.
-- `backend/infrastructure/repositories.py`: consultas y persistencia SQLAlchemy, incluida auditoría y retención.
-- `backend/infrastructure/orm_models.py`: tablas `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
-- `backend/infrastructure/config.py` y `backend/infrastructure/database.py`: configuración, engine, sesiones y creación de tablas.
+- `backend/infrastructure/repositories.py`: consultas y persistencia SQLAlchemy, incluida auditoría, usuarios y retención.
+- `backend/infrastructure/orm_models.py`: tablas `users`, `incidents`, `triage_results`, `triage_reviews` y `audit_logs`.
+- `backend/infrastructure/config.py` y `backend/infrastructure/database.py`: configuración, engine, sesiones, creación de tablas y migración aditiva ligera.
 - `backend/domain/models.py`: enums y estados del dominio.
 - `backend/analyzers/core.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
 - `backend/schemas.py`: contratos Pydantic públicos.
@@ -87,15 +92,20 @@ npm install
 npm run dev
 ```
 
-La URL del backend se puede configurar con `VITE_API_URL`; si se omite durante `npm run dev`, Vite hace proxy
-de las rutas de la API hacia `http://127.0.0.1:8000`. Para un frontend servido fuera de Vite, define
-`VITE_API_URL` con el origen del backend (por ejemplo, `http://127.0.0.1:8000`, sin añadir `/api`).
-La base incluye Vite + React + TypeScript, Tailwind, componentes compatibles con shadcn/ui, TanStack Query,
-React Router, react-hook-form, zod, Vitest, Testing Library y MSW.
+El frontend usa `VITE_API_URL` como origen del backend y, si no se define, apunta a `http://127.0.0.1:8000` (sin
+añadir `/api`). El servidor de desarrollo de Vite mantiene proxies para las rutas de la API, útiles si prefieres
+servirlas por el mismo origen. La base incluye Vite + React + TypeScript, Tailwind, componentes compatibles con
+shadcn/ui, TanStack Query, React Router, react-hook-form, zod, Vitest, Testing Library, MSW, ESLint y Prettier.
+El código se organiza por `features/` (`incidents`, `review`, `metrics`) y `shared/` (componentes y utilidades
+reutilizables); `src/api` sigue siendo el cliente tipado único.
 
-Rutas frontend disponibles: `/` (bandeja), `/new` (creación), `/incidents/:id` (detalle, análisis y revisión),
-`/metrics` (métricas) y `/login` (autenticación). Las rutas de trabajo requieren un token JWT; una respuesta 401
-limpia la sesión local y redirige al acceso.
+Rutas frontend disponibles: `/` (bandeja con filtros por estado y confianza, vista de pendientes priorizada por
+confianza baja y paginación), `/new` (creación con chips de componentes y errores 422 por campo), `/incidents/:id`
+(detalle, análisis, aviso de confianza baja y de Ollama, diff IA→humano y revisión con checklist de faltantes),
+`/metrics` (métricas con matriz de confusión y aviso de fiabilidad), `/users` (gestión de usuarios, solo admin) y
+`/login` (autenticación). La UI conoce el rol: `reader` no ve acciones de escritura y solo `admin` ve Usuarios. Una
+respuesta 401 limpia la sesión local y redirige al acceso; si el backend informa `authenticated: false`, la app
+funciona en modo anónimo.
 
 Para comprobar la instalación:
 
@@ -103,39 +113,43 @@ Para comprobar la instalación:
 python -m pytest -q
 ```
 
-La suite usa el backend determinista y no realiza llamadas a Ollama. Las validaciones completas son:
+La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **136 tests backend** y
+**33 tests frontend** (7 archivos). Las validaciones completas son:
 
 ```powershell
 python -m pytest -q
 Set-Location frontend
 npm ci
 npm run lint
+npm run format:check
 npm test -- --run
 npm run build
 ```
 
-CI ejecuta estas comprobaciones separando los jobs de backend y frontend, además de validar el Dockerfile.
+CI ejecuta estas comprobaciones separando los jobs de backend y frontend (lint, formato, tests y build), además de
+validar el Dockerfile.
 
 ## Configuración
 
 | Variable | Default | Uso |
 |---|---|---|
 | `APP_NAME` | nombre del proyecto | Título de FastAPI. |
-| `DATABASE_URL` | SQLite local absoluta | URL SQLAlchemy; no se crean migraciones en este MVP. |
+| `DATABASE_URL` | SQLite local absoluta | URL SQLAlchemy; el MVP usa `create_all` más una migración aditiva ligera para columnas nuevas. |
 | `ANALYZER_BACKEND` | `fake` | `fake` para desarrollo/tests o `ollama` explícito. |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Runtime local de Ollama. |
 | `OLLAMA_MODEL` | `qwen3.5:4b` | Modelo Ollama. |
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Timeout finito del adaptador. |
-| `AUTH_USERS` | vacío | Usuarios y roles con formato `name:role:password,...`; vacío deshabilita auth local. |
-| `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres cuando `AUTH_USERS` está configurado. |
+| `AUTH_USERS` | vacío | Semilla inicial `name:role:password,...` para la tabla `users`. Solo crea usuarios que falten; después la BD manda. Vacío no siembra nada. |
+| `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres para emitir y validar tokens. |
 | `JWT_EXPIRATION_MINUTES` | `60` | Duración de los tokens JWT. |
 | `CORS_ORIGINS` | `http://localhost:5173` | Orígenes HTTP(S) separados por comas; `*` no está permitido. |
 | `RETENTION_DAYS` | `90` | Antigüedad mínima de incidencias antes de poder purgarlas. |
 | `AUDIT_RETENTION_DAYS` | `365` | Antigüedad mínima de registros de auditoría antes de purgarlos. |
 
 El arranque valida backend, URL HTTP(S), modelo no vacío, timeout positivo, días de retención positivos, el formato
-de `AUTH_USERS`, la longitud de `JWT_SECRET` y los orígenes CORS. `GET /health` es público, no llama a Ollama ni
-expone URL, modelo, usuarios, claves o secretos:
+de `AUTH_USERS`, la longitud de `JWT_SECRET` y los orígenes CORS. Si `AUTH_USERS` está configurado, la autenticación
+se exige aunque la tabla `users` esté vacía (fail-closed): no se degrada a modo anónimo por un fallo de bootstrap.
+`GET /health` es público, no llama a Ollama ni expone URL, modelo, usuarios, claves o secretos:
 
 ```json
 {"status":"ok","analyzer_backend":"fake"}
@@ -143,8 +157,9 @@ expone URL, modelo, usuarios, claves o secretos:
 
 ## Autenticación y autorización
 
-La autenticación se activa definiendo `AUTH_USERS` y `JWT_SECRET`. El formato es una lista separada por comas con
-entradas `nombre:rol:contraseña`:
+La fuente de verdad es la tabla `users`: usuario, rol, `active`, hash Argon2id y versión de token. `AUTH_USERS` solo
+siembra usuarios que aún no existan al arrancar; no actualiza contraseñas, roles ni reactiva cuentas. Una vez creada
+la tabla, los cambios se hacen con el CRUD administrativo o directamente en base de datos.
 
 ```powershell
 $env:AUTH_USERS = "soporte:writer:contraseña-de-soporte,auditor:reader:contraseña-de-auditor,admin:admin:contraseña-de-admin"
@@ -152,21 +167,24 @@ $env:JWT_SECRET = "cambia-este-secreto-por-uno-de-al-menos-32-caracteres"
 uvicorn backend.main:app --reload
 ```
 
-- `POST /auth/login` recibe `{"username":"soporte","password":"..."}` y devuelve un token Bearer.
+- `POST /auth/login` recibe `{"username":"soporte","password":"..."}` y devuelve un token Bearer más el usuario.
+- `GET /auth/me` devuelve `name`, `role` y `authenticated`. La UI lo usa para decidir qué acciones mostrar.
+- Las contraseñas se guardan con **Argon2id** y salt único; nunca se devuelven, registran ni auditan.
+- El JWT incluye `sub`, `role`, `ver`, `iat` y `exp`. `ver` es la versión de token del usuario.
+- Cambiar la contraseña incrementa `token_version`: los tokens anteriores dejan de valer.
+- Desactivar un usuario o cambiar su rol también se refleja de inmediato: cada petición revalida contra la BD.
 - Los roles son jerárquicos: `reader < writer < admin`.
-- El cliente envía el token en la cabecera `Authorization: Bearer <token>`.
-- Sin token o con un token inválido la API devuelve `401`; con un rol insuficiente devuelve `403`.
+- Sin token o con token inválido la API devuelve `401`; con rol insuficiente, `403`.
 - `GET /health` permanece público para sondas de disponibilidad.
-- Si `AUTH_USERS` está vacío, la autenticación se deshabilita y se permite todo el acceso. Es el modo por defecto
-  para desarrollo local, tests y demo.
-- Las contraseñas y secretos no se incluyen en respuestas, logs ni auditoría. Las comparaciones usan hashes y
-  `secrets.compare_digest`.
+- Si `AUTH_USERS` está vacío y la tabla `users` no tiene filas, la autenticación se deshabilita y se permite todo el
+  acceso. Es el modo por defecto para desarrollo local, tests y demo. Si `AUTH_USERS` está configurado, la auth se
+  exige aunque la tabla esté vacía (fail-closed).
 
 | Rol | Permisos |
 |---|---|
-| `reader` | `GET /incidents/{id}` |
+| `reader` | `GET /incidents`, `GET /incidents/{id}`, `GET /review-metrics`, `GET /auth/me` |
 | `writer` | Todo lo de `reader` más `POST /incidents`, `POST /incidents/{id}/analysis` y `PATCH /incidents/{id}/triage` |
-| `admin` | Todo lo anterior más `GET /audit` y `POST /admin/retention` |
+| `admin` | Todo lo anterior más `GET /audit`, `POST /admin/retention` y el CRUD de `/users` |
 
 ```powershell
 $login = curl.exe -sS -X POST http://127.0.0.1:8000/auth/login `
@@ -174,7 +192,17 @@ $login = curl.exe -sS -X POST http://127.0.0.1:8000/auth/login `
   --data-raw '{"username":"auditor","password":"contraseña-de-auditor"}' | ConvertFrom-Json
 curl.exe -i http://127.0.0.1:8000/incidents/{incident_id} `
   -H "Authorization: Bearer $($login.access_token)"
+curl.exe -i http://127.0.0.1:8000/auth/me `
+  -H "Authorization: Bearer $($login.access_token)"
 ```
+
+Guardas del CRUD de usuarios:
+
+- Solo `admin` puede listar, crear, consultar, actualizar o desactivar usuarios.
+- No se puede desactivar el último administrador activo ni degradar su rol.
+- Un administrador no puede desactivar su propio usuario.
+- El borrado es lógico (`DELETE` desactiva), para conservar la trazabilidad de la auditoría.
+- Los nombres admiten `A-Z`, `a-z`, `0-9`, `.`, `_` y `-`; las contraseñas tienen entre 12 y 200 caracteres.
 
 ## API y ejemplos
 
@@ -220,7 +248,9 @@ curl.exe -i "http://127.0.0.1:8000/incidents?limit=20&offset=0&status=analyzed&c
 
 Devuelve incidencias ordenadas por `created_at` descendente con `id`, `title`, `status`, `created_at`,
 la `confidence` de la propuesta y los bloques ligeros `proposal` y `final` (este último solo si existe
-una revisión). Admite `limit` (1–200), `offset`, `status` y `confidence`.
+una revisión). Admite `limit` (1–200), `offset`, `status`, `confidence` y `sort`. Con `sort=confidence`
+ordena de confianza baja a alta (los `null` al final y, dentro de cada grupo, por fecha descendente), lo que
+permite construir la vista de pendientes priorizando lo que más necesita revisión humana.
 
 ### Analizar — `POST /incidents/{incident_id}/analysis`
 
@@ -232,20 +262,21 @@ La respuesta `200` contiene `status: "analyzed"` y `triage` con:
 `category` (`bug`, `feature`, `documentation`, `configuration`, `performance`), `severity`
 (`low`, `medium`, `high`, `critical`), `priority` (`low`, `medium`, `high`, `urgent`), `summary`,
 `affected_components`, `missing_information`, `justification` y `confidence` (`low`, `medium`, `high`).
-Un segundo análisis devuelve `409`.
+Un segundo análisis desde `analyzed` devuelve `409`; si el estado es `analysis_failed`, se permite reintentar.
 
 ### Revisar — `PATCH /incidents/{incident_id}/triage`
 
 ```powershell
 curl.exe -i -X PATCH http://127.0.0.1:8000/incidents/{incident_id}/triage `
   -H "Content-Type: application/json" `
-  --data-raw '{"severity":"critical","priority":"urgent","review_comment":"Impacto confirmado"}'
+  --data-raw '{"severity":"critical","priority":"urgent","review_comment":"Impacto confirmado","review_checklist":["Revisé severidad y prioridad"]}'
 ```
 
 La respuesta `200` cambia el estado a `reviewed`. `triage` sigue siendo la propuesta original y
-`triage.review.final` contiene los valores finales, con `reviewed: true`, `source: "human"`, comentario y timestamp.
-Un comentario solo acepta la propuesta sin cambios. Una petición vacía, una incidencia sin análisis o una revisión
-duplicada devuelve `422`/`409` según el caso.
+`triage.review.final` contiene los valores finales, con `reviewed: true`, `source: "human"`, comentario,
+`review_checklist`, timestamp y los campos corregidos. Un comentario solo acepta la propuesta sin cambios. Una
+petición vacía, una incidencia sin análisis o una revisión duplicada devuelve `422`/`409` según el caso. La checklist
+acepta hasta 20 elementos de 1–200 caracteres y se persiste en `triage_reviews.review_checklist`.
 
 Límites relevantes: título 1–200 caracteres, descripción 1–5000, comentarios 2000, componentes y listas de triaje
 máximo 20 elementos. Los campos desconocidos se rechazan. Si la autenticación está activa, añade la cabecera `Authorization: Bearer <token>` a todas las peticiones salvo
@@ -254,6 +285,22 @@ máximo 20 elementos. Los campos desconocidos se rechazan. Si la autenticación 
 `affected_components` y `missing_information` se tratan como conjuntos: el orden de sus elementos no forma parte
 del contrato y los duplicados se eliminan durante la validación. `summary` y `justification` se conservan como
 texto exacto.
+
+### Usuarios — `GET/POST/PATCH/DELETE /users`
+
+Solo `admin`. Listado paginado en `GET /users?limit=50&offset=0`; creación con `POST /users`; consulta y
+actualización con `GET/PATCH /users/{user_id}`; desactivación con `DELETE /users/{user_id}`.
+
+```powershell
+curl.exe -i -X POST http://127.0.0.1:8000/users `
+  -H "Content-Type: application/json" `
+  -H "Authorization: Bearer $($login.access_token)" `
+  --data-raw '{"username":"nuevo.soporte","password":"contraseña-inicial-0123456789","role":"writer"}'
+```
+
+La respuesta nunca incluye `password_hash`. `PATCH` acepta `password`, `role` y `active`; debe cambiar al menos un
+campo. `DELETE` desactiva al usuario en lugar de borrarlo. Los intentos de dejar el sistema sin administrador activo
+devuelven `409`.
 
 ### Métricas de revisión — `GET /review-metrics`
 
@@ -274,7 +321,10 @@ y metadatos operativos. No se guardan títulos, descripciones, comentarios, prom
 | `incident.create` | Se crea una incidencia. |
 | `incident.analyze` | El análisis termina correctamente. |
 | `incident.analysis_failed` | El análisis falla; incluye el tipo de error, no su mensaje. |
-| `incident.review` | Se acepta o corrige el triaje; incluye campos cambiados y si hubo comentario. |
+| `incident.review` | Se acepta o corrige el triaje; incluye campos realmente cambiados, si hubo comentario y nº de ítems de checklist. |
+| `user.bootstrap` | Se siembran usuarios iniciales desde `AUTH_USERS`; incluye cuántos y con qué roles. |
+| `user.create` | Un admin crea un usuario; incluye el rol, nunca la contraseña. |
+| `user.update` | Un admin cambia contraseña, rol o estado; incluye `changed_fields` sin secretos. |
 | `retention.run` | Se ejecuta un dry-run o una purga; incluye cortes y recuentos. |
 
 `GET /audit` es solo para `admin` y admite `limit` (1–200, default 50), `offset`, `action`, `actor`,
@@ -296,7 +346,7 @@ curl.exe -i "http://127.0.0.1:8000/audit?action=incident.review&limit=20" `
       "action": "incident.review",
       "resource_type": "incident",
       "resource_id": "00000000-0000-0000-0000-000000000001",
-      "details": {"status": "reviewed", "changed_fields": ["severity"], "has_comment": true}
+      "details": {"status": "reviewed", "changed_fields": ["severity"], "has_comment": true, "checklist_items": 1}
     }
   ],
   "total": 1,
@@ -567,11 +617,15 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 - **FakeAnalyzer:** permite tests rápidos y reproducibles sin descargar modelos.
 - **Sin RAG/agentes:** no son necesarios para clasificar el contrato actual y aumentarían superficie y coste.
 - **Validación estructurada:** Pydantic rechaza respuestas incompletas; se evita puntuar o persistir texto no validado.
-- **Revisión humana:** la tabla `triage_reviews` conserva el original y permite medir correcciones futuras.
-- **Autenticación y autorización:** `AUTH_USERS` y `JWT_SECRET` se validan al arrancar; las contraseñas se comparan
-  por hash y nunca se devuelven, registran ni auditan. Los tokens JWT tienen expiración configurable, los roles son
-  jerárquicos y las rutas administrativas quedan restringidas a `admin`. Vaciar `AUTH_USERS` deshabilita auth solo
-  para desarrollo local.
+- **Revisión humana:** la tabla `triage_reviews` conserva el original, la checklist y el comentario, y permite medir
+  correcciones futuras.
+- **Autenticación y autorización:** `users` es la fuente de verdad; `AUTH_USERS` solo siembra usuarios iniciales.
+  Las contraseñas usan Argon2id con salt único y nunca se devuelven, registran ni auditan. Los JWT incluyen `ver`,
+  expiran y se revalidan contra la BD en cada petición, por lo que cambiar contraseña o desactivar una cuenta revoca
+  el acceso. Los roles son jerárquicos, el CRUD de usuarios es solo para `admin` y hay guardas para no quedarse sin
+  administrador activo. Si `AUTH_USERS` está configurado, la auth se exige aunque la tabla esté vacía.
+- **UI por rol:** el frontend consulta `/auth/me`; `reader` no ve acciones de escritura y solo `admin` ve Usuarios.
+  El detalle muestra un diff IA→humano con los campos modificados y la checklist persistida.
 - **Auditoría:** `audit_logs` registra actor, rol, acción, recurso y metadatos operativos. Se evita guardar texto
   libre de incidencias, comentarios, prompts o claves. Si la escritura de auditoría falla durante un análisis, el
   error original se conserva y el fallo de auditoría se registra en el log.
@@ -591,8 +645,9 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 > desarrollo, un holdout original, un conjunto de regresión y un holdout ciego escrito después de los cambios; además
 > puedo comparar fake frente a Ollama con deltas por caso, métrica y latencia. Sé que el fake no mide calidad de LLM y
 > que 12 casos son una muestra pequeña. Elegí SQLite para reducir el coste operativo del MVP, añadí límites, errores
-> explícitos, logs JSON sin contenido sensible, autenticación JWT con roles jerárquicos, auditoría sin datos sensibles,
-> retención con dry-run y CI/Docker para que la demo sea reproducible.”
+> explícitos, logs JSON sin contenido sensible, usuarios persistidos con Argon2id, JWT versionados con roles
+> jerárquicos, CRUD de usuarios con guardas de administrador, auditoría sin datos sensibles, retención con dry-run y
+> CI/Docker para que la demo sea reproducible.”
 
 ## Limitaciones y mejoras futuras
 
@@ -616,10 +671,11 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
 - **Persistencia y operación:** SQLite y `create_all` simplifican el MVP local, pero un despliegue multiinstancia
   necesitará PostgreSQL, migraciones versionadas, copias de seguridad verificadas, restauración probada y una estrategia
   para concurrencia y observabilidad. La auditoría comparte la misma base de datos y no es un sumidero inmutable externo.
-- **Autenticación y exposición de la API:** el modelo actual usa credenciales estáticas en variables de entorno. Faltan
-  rotación y revocación de claves, gestión de usuarios, rate limiting, gestión centralizada de secretos, TLS en un proxy
-  y una política de sesiones más completa. La autenticación deshabilitada por defecto debe mantenerse limitada a
-  desarrollo local y tests.
+- **Autenticación y exposición de la API:** ya existe CRUD de usuarios, Argon2id y revocación por `token_version`,
+  pero faltan rate limiting, bloqueo por intentos fallidos, MFA, rotación de `JWT_SECRET`, recuperación de contraseña,
+  gestión centralizada de secretos, TLS en un proxy y una política de sesiones más completa. La autenticación
+  deshabilitada por defecto debe mantenerse limitada a desarrollo local y tests. La migración de columnas aditivas es
+  deliberadamente ligera: un despliegue real necesita migraciones versionadas.
 - **Retención y cumplimiento:** la purga hace borrado físico, ejecuta dry-run por defecto y debe programarse fuera de la
   API. Todavía no cubre copias de seguridad, bloqueos legales, periodos de gracia, restauración selectiva ni una política
   de clasificación y minimización de datos más amplia.

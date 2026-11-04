@@ -12,9 +12,11 @@ from backend.infrastructure.repositories import (
     AuditRepository,
     IncidentRepository,
     RetentionRepository,
+    UserRepository,
 )
 from backend.services.incident import IncidentService
 from backend.services.retention import RetentionService
+from backend.services.users import UserService
 
 
 def get_incident_service(
@@ -57,4 +59,19 @@ def get_retention_service(
         AuditRepository(session),
         runtime_settings.retention_days,
         runtime_settings.audit_retention_days,
+    )
+
+
+def get_user_repository(
+    session: Session = Depends(get_db_session),
+) -> UserRepository:
+    return UserRepository(session)
+
+
+def get_user_service(
+    session: Session = Depends(get_db_session),
+) -> UserService:
+    return UserService(
+        UserRepository(session),
+        AuditRepository(session),
     )

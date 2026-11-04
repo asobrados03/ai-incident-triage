@@ -5,11 +5,19 @@ import type {
   IncidentCreatePayload,
   IncidentResponse,
   LoginResponse,
+  PrincipalResponse,
   ReviewMetricsResponse,
   TriageReviewPayload,
+  UserCreatePayload,
+  UserListPage,
+  UserResponse,
+  UserUpdatePayload,
 } from "@/api/types";
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+const configuredApiUrl = import.meta.env.VITE_API_URL;
+const API_BASE_URL = (
+  configuredApiUrl ?? (import.meta.env.MODE === "test" ? "" : "http://127.0.0.1:8000")
+).replace(/\/$/, "");
 const TOKEN_KEY = "triage-access-token";
 
 export function getAccessToken() {
@@ -46,11 +54,7 @@ function url(path: string) {
   return `${API_BASE_URL}${path}`;
 }
 
-async function request<T>(
-  path: string,
-  init: RequestInit = {},
-  signal?: AbortSignal,
-): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, signal?: AbortSignal): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url(path), {
@@ -73,13 +77,12 @@ async function request<T>(
       clearAccessToken();
       window.dispatchEvent(new Event("auth:expired"));
     }
+    const rawDetail =
+      typeof payload === "object" && payload !== null && "detail" in payload
+        ? (payload as ApiErrorPayload).detail
+        : undefined;
     const detail =
-      typeof payload === "object" &&
-      payload !== null &&
-      "detail" in payload &&
-      typeof (payload as ApiErrorPayload).detail === "string"
-        ? (payload as ApiErrorPayload).detail!
-        : `La API respondió con ${response.status}`;
+      typeof rawDetail === "string" ? rawDetail : `La API respondió con ${response.status}`;
     throw new ApiError(response.status, detail, payload);
   }
   return payload as T;
@@ -92,6 +95,25 @@ export const apiClient = {
       method: "POST",
       body: JSON.stringify({ username, password }),
     }),
+  me: (signal?: AbortSignal) => request<PrincipalResponse>("/auth/me", {}, signal),
+  listUsers: (params: { limit?: number; offset?: number } = {}, signal?: AbortSignal) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined) query.set(key, String(value));
+    });
+    return request<UserListPage>(`/users${query.size ? `?${query.toString()}` : ""}`, {}, signal);
+  },
+  createUser: (payload: UserCreatePayload) =>
+    request<UserResponse>("/users", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateUser: (id: string, payload: UserUpdatePayload) =>
+    request<UserResponse>(`/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    }),
+  deactivateUser: (id: string) => request<UserResponse>(`/users/${id}`, { method: "DELETE" }),
   createIncident: (payload: IncidentCreatePayload) =>
     request<IncidentResponse>("/incidents", {
       method: "POST",
@@ -109,7 +131,13 @@ export const apiClient = {
   reviewMetrics: (signal?: AbortSignal) =>
     request<ReviewMetricsResponse>("/review-metrics", {}, signal),
   listIncidents: (
-    params: { limit?: number; offset?: number; status?: string; confidence?: string } = {},
+    params: {
+      limit?: number;
+      offset?: number;
+      status?: string;
+      confidence?: string;
+      sort?: "created_at" | "confidence";
+    } = {},
     signal?: AbortSignal,
   ) => {
     const query = new URLSearchParams();

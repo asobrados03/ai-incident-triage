@@ -1,11 +1,12 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Literal
 from uuid import UUID, uuid4
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.orm import Session
 
-from backend.auth import Principal
+from backend.auth import Principal, Role
 from backend.domain.models import (
     AnalysisConfidence,
     IncidentCategory,
@@ -18,6 +19,7 @@ from backend.infrastructure.orm_models import (
     IncidentORM,
     TriageResultORM,
     TriageReviewORM,
+    UserORM,
 )
 from backend.schemas import (
     AuditLogResponse,
@@ -31,7 +33,106 @@ from backend.schemas import (
     TriageReviewRequest,
     TriageReviewResponse,
     TriageResultResponse,
+    UserResponse,
 )
+
+
+class UserRepository:
+    def __init__(self, session: Session) -> None:
+        self._session = session
+
+    def has_any(self) -> bool:
+        return bool(self._session.scalar(select(func.count(UserORM.id))))
+
+    def count_active_admins(self) -> int:
+        return int(
+            self._session.scalar(
+                select(func.count(UserORM.id)).where(
+                    UserORM.role == "admin",
+                    UserORM.active.is_(True),
+                ),
+            )
+            or 0,
+        )
+
+    def get(self, user_id: UUID) -> UserORM | None:
+        return self._session.get(UserORM, str(user_id))
+
+    def get_by_username(self, username: str) -> UserORM | None:
+        return self._session.scalar(
+            select(UserORM).where(UserORM.username == username),
+        )
+
+    def list(self, *, limit: int, offset: int) -> tuple[list[UserORM], int]:
+        total = int(self._session.scalar(select(func.count(UserORM.id))) or 0)
+        records = self._session.scalars(
+            select(UserORM)
+            .order_by(UserORM.username.asc())
+            .limit(limit)
+            .offset(offset),
+        ).all()
+        return list(records), total
+
+    def create(
+        self,
+        *,
+        username: str,
+        password_hash: str,
+        role: Role,
+    ) -> UserORM:
+        now = datetime.now(timezone.utc)
+        record = UserORM(
+            id=str(uuid4()),
+            username=username,
+            password_hash=password_hash,
+            role=role.value,
+            active=True,
+            token_version=0,
+            created_at=now,
+            updated_at=now,
+            last_login_at=None,
+        )
+        self._session.add(record)
+        self._session.commit()
+        self._session.refresh(record)
+        return record
+
+    def update(
+        self,
+        record: UserORM,
+        *,
+        password_hash: str | None = None,
+        role: Role | None = None,
+        active: bool | None = None,
+    ) -> UserORM:
+        if password_hash is not None:
+            record.password_hash = password_hash
+            # Los tokens emitidos antes del cambio dejan de ser válidos.
+            record.token_version += 1
+        if role is not None:
+            record.role = role.value
+        if active is not None:
+            record.active = active
+        record.updated_at = datetime.now(timezone.utc)
+        self._session.commit()
+        self._session.refresh(record)
+        return record
+
+    def mark_login(self, record: UserORM) -> None:
+        record.last_login_at = datetime.now(timezone.utc)
+        self._session.commit()
+
+    @staticmethod
+    def to_response(record: UserORM) -> UserResponse:
+        return UserResponse(
+            id=UUID(record.id),
+            username=record.username,
+            role=Role(record.role),
+            active=record.active,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+            last_login_at=record.last_login_at,
+        )
 
 
 class IncidentRepository:
@@ -67,6 +168,7 @@ class IncidentRepository:
         offset: int,
         status_filter: IncidentStatus | None = None,
         confidence: AnalysisConfidence | None = None,
+        sort: Literal["created_at", "confidence"] = "created_at",
     ) -> tuple[list[IncidentListItem], int]:
         filters = []
         if status_filter is not None:
@@ -90,14 +192,24 @@ class IncidentRepository:
             base_query = base_query.where(*filters)
             count_query = count_query.where(*filters)
 
-        total = self._session.scalar(count_query) or 0
-        records = self._session.scalars(
-            base_query.order_by(
+        if sort == "confidence":
+            confidence_rank = case(
+                (TriageResultORM.confidence == AnalysisConfidence.LOW.value, 0),
+                (TriageResultORM.confidence == AnalysisConfidence.MEDIUM.value, 1),
+                (TriageResultORM.confidence == AnalysisConfidence.HIGH.value, 2),
+                else_=3,
+            )
+            ordering = (
+                confidence_rank.asc(),
                 IncidentORM.created_at.desc(),
                 IncidentORM.id.desc(),
             )
-            .limit(limit)
-            .offset(offset),
+        else:
+            ordering = (IncidentORM.created_at.desc(), IncidentORM.id.desc())
+
+        total = self._session.scalar(count_query) or 0
+        records = self._session.scalars(
+            base_query.order_by(*ordering).limit(limit).offset(offset),
         ).all()
         return [self._to_list_item(record) for record in records], total
 
@@ -358,7 +470,7 @@ class IncidentRepository:
             {
                 key: value.value if hasattr(value, "value") else value
                 for key, value in review.model_dump(exclude_none=True).items()
-                if key != "review_comment"
+                if key not in {"review_comment", "review_checklist"}
             },
         )
         values["affected_components"] = list(values["affected_components"] or [])
@@ -369,6 +481,7 @@ class IncidentRepository:
             reviewed_at=datetime.now(timezone.utc),
             source="human",
             review_comment=review.review_comment,
+            review_checklist=list(review.review_checklist or []),
             **values,
         )
         self._session.add(record)
@@ -380,6 +493,7 @@ class IncidentRepository:
             reviewed=True,
             source=record.source,
             review_comment=record.review_comment,
+            review_checklist=list(record.review_checklist or []),
             reviewed_at=record.reviewed_at,
             final=TriageResult(
                 category=IncidentCategory(record.category),

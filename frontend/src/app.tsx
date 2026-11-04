@@ -3,13 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useNavigate } from "react-router-dom";
 
 import { apiClient } from "@/api/client";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shared/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
-import { useAuth } from "@/auth";
+import { useAuth } from "@/auth-context";
 
 export function AppLayout() {
   const { theme, toggleTheme } = useTheme();
-  const { logout } = useAuth();
+  const { canWrite, isAdmin, isAnonymous, isAuthenticated, logout, principal } = useAuth();
   const navigate = useNavigate();
   const health = useQuery({
     queryKey: ["health"],
@@ -28,21 +28,51 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <nav className="hidden items-center gap-3 text-sm md:flex">
               <Link to="/">Bandeja</Link>
-              <Link to="/new">Nueva</Link>
+              {canWrite && <Link to="/new">Nueva</Link>}
               <Link to="/metrics">Métricas</Link>
+              {isAdmin && <Link to="/users">Usuarios</Link>}
             </nav>
-            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground" aria-label="Estado del backend">
-              <Activity className="h-4 w-4" />
+            {principal && (
+              <span
+                className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                aria-label="Sesión actual"
+              >
+                {principal.name} · {principal.role}
+                {isAnonymous && " · auth desactivada"}
+              </span>
+            )}
+            <span
+              className="inline-flex items-center gap-2 text-sm text-muted-foreground"
+              aria-label="Estado del backend"
+              aria-live="polite"
+            >
+              <Activity className="h-4 w-4" aria-hidden="true" />
               {health.isPending && "Comprobando API…"}
-              {health.isSuccess && `API ${health.data.status}`}
+              {health.isSuccess && (
+                <>
+                  <span>API {health.data.status}</span>
+                  <span className="rounded-full border border-border px-2 py-0.5 text-xs">
+                    analizador: {health.data.analyzer_backend}
+                  </span>
+                </>
+              )}
               {health.isError && "API no disponible"}
             </span>
             <Button variant="ghost" size="sm" onClick={toggleTheme} aria-label="Cambiar tema">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <Button variant="outline" size="sm" onClick={() => { logout(); navigate("/login"); }}>
-              Salir
-            </Button>
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  logout();
+                  navigate("/login");
+                }}
+              >
+                Salir
+              </Button>
+            )}
           </div>
         </div>
       </header>

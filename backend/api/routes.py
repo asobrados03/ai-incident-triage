@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -13,12 +14,14 @@ from backend.api.dependencies import (
     get_incident_repository,
     get_incident_service,
     get_retention_service,
+    get_user_service,
 )
 from backend.auth import (
     Principal,
     Role,
     create_access_token,
-    get_auth_user_store,
+    get_principal,
+    jwt_secret_configured,
     require_role,
 )
 from backend.infrastructure.config import Settings, get_settings
@@ -32,10 +35,15 @@ from backend.schemas import (
     IncidentResponse,
     LoginRequest,
     LoginResponse,
+    PrincipalResponse,
     RetentionRunRequest,
     RetentionRunResponse,
     ReviewMetricsResponse,
     TriageReviewRequest,
+    UserCreate,
+    UserListPage,
+    UserResponse,
+    UserUpdate,
 )
 from backend.services.incident import (
     IncidentAnalysisConflictError,
@@ -44,6 +52,11 @@ from backend.services.incident import (
     IncidentService,
 )
 from backend.services.retention import RetentionService
+from backend.services.users import (
+    UserConflictError,
+    UserNotFoundError,
+    UserService,
+)
 
 router = APIRouter()
 
@@ -52,19 +65,130 @@ router = APIRouter()
 def login(
     credentials: LoginRequest,
     runtime_settings: Settings = Depends(get_settings),
+    user_service: UserService = Depends(get_user_service),
 ) -> LoginResponse:
-    store = get_auth_user_store(runtime_settings.auth_users)
-    principal = store.authenticate(credentials.username, credentials.password)
-    if principal is None:
+    if not jwt_secret_configured(runtime_settings):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="JWT_SECRET must be configured before issuing tokens",
+        )
+    result = user_service.login(credentials.username, credentials.password)
+    if result is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return LoginResponse(
-        access_token=create_access_token(principal, runtime_settings),
+        access_token=create_access_token(
+            result.principal,
+            runtime_settings,
+            result.token_version,
+        ),
         expires_in=runtime_settings.jwt_expiration_minutes * 60,
+        user=result.user,
     )
+
+
+@router.get("/auth/me", response_model=PrincipalResponse)
+def me(principal: Principal = Depends(get_principal)) -> PrincipalResponse:
+    return PrincipalResponse(
+        name=principal.name,
+        role=principal.role,
+        authenticated=principal.authenticated,
+    )
+
+
+@router.get("/users", response_model=UserListPage)
+def list_users(
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    _principal: Principal = Depends(require_role(Role.ADMIN)),
+    user_service: UserService = Depends(get_user_service),
+) -> UserListPage:
+    items, total = user_service.list(limit=limit, offset=offset)
+    return UserListPage(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.post(
+    "/users",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_user(
+    payload: UserCreate,
+    principal: Principal = Depends(require_role(Role.ADMIN)),
+    runtime_settings: Settings = Depends(get_settings),
+    user_service: UserService = Depends(get_user_service),
+) -> UserResponse:
+    if not jwt_secret_configured(runtime_settings):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="JWT_SECRET must be configured before creating users",
+        )
+    try:
+        return user_service.create(payload, actor=principal)
+    except UserConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+
+
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user(
+    user_id: UUID,
+    _principal: Principal = Depends(require_role(Role.ADMIN)),
+    user_service: UserService = Depends(get_user_service),
+) -> UserResponse:
+    try:
+        return user_service.get(user_id)
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        ) from error
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: UUID,
+    payload: UserUpdate,
+    principal: Principal = Depends(require_role(Role.ADMIN)),
+    user_service: UserService = Depends(get_user_service),
+) -> UserResponse:
+    try:
+        return user_service.update(user_id, payload, actor=principal)
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        ) from error
+    except UserConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+
+
+@router.delete("/users/{user_id}", response_model=UserResponse)
+def deactivate_user(
+    user_id: UUID,
+    principal: Principal = Depends(require_role(Role.ADMIN)),
+    user_service: UserService = Depends(get_user_service),
+) -> UserResponse:
+    try:
+        return user_service.deactivate(user_id, actor=principal)
+    except UserNotFoundError as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        ) from error
+    except UserConflictError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
 
 
 @router.get("/health")
@@ -96,6 +220,7 @@ def list_incidents(
     offset: int = Query(default=0, ge=0),
     status_filter: IncidentStatus | None = Query(default=None, alias="status"),
     confidence: AnalysisConfidence | None = Query(default=None),
+    sort: Literal["created_at", "confidence"] = Query(default="created_at"),
     _principal: Principal = Depends(require_role(Role.READER)),
     incident_repository: IncidentRepository = Depends(get_incident_repository),
 ) -> IncidentListPage:
@@ -104,6 +229,7 @@ def list_incidents(
         offset=offset,
         status_filter=status_filter,
         confidence=confidence,
+        sort=sort,
     )
     return IncidentListPage(items=items, total=total, limit=limit, offset=offset)
 

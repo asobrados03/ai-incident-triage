@@ -3,16 +3,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
-from functools import lru_cache
-import hashlib
-import secrets
+import re
 
 import jwt
+from argon2 import PasswordHasher
+from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import SecretStr
+from sqlalchemy.orm import Session
 
 from backend.infrastructure.config import Settings, get_settings
+from backend.infrastructure.database import get_db_session
 
 
 class Role(StrEnum):
@@ -26,6 +28,13 @@ _ROLE_RANK = {
     Role.WRITER: 2,
     Role.ADMIN: 3,
 }
+
+USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9._-]{3,100}$")
+PASSWORD_MIN_LENGTH = 12
+PASSWORD_MAX_LENGTH = 200
+
+_hasher = PasswordHasher()
+_DUMMY_HASH = _hasher.hash("dummy-password-used-for-timing")
 
 
 @dataclass(frozen=True)
@@ -47,29 +56,29 @@ class Principal:
 
 
 @dataclass(frozen=True)
-class _AuthUser:
-    name: str
+class BootstrapUser:
+    username: str
     role: Role
-    password_digest: bytes
+    password: str
 
 
-class AuthUserStore:
-    def __init__(self, users: list[_AuthUser]) -> None:
-        self._users = tuple(users)
+def hash_password(password: str) -> str:
+    if not PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH:
+        raise ValueError(
+            f"Password must be between {PASSWORD_MIN_LENGTH} and "
+            f"{PASSWORD_MAX_LENGTH} characters",
+        )
+    return _hasher.hash(password)
 
-    @property
-    def enabled(self) -> bool:
-        return bool(self._users)
 
-    def authenticate(self, username: str, password: str) -> Principal | None:
-        password_digest = hashlib.sha256(password.encode("utf-8")).digest()
-        for user in self._users:
-            if user.name == username and secrets.compare_digest(
-                user.password_digest,
-                password_digest,
-            ):
-                return Principal(name=user.name, role=user.role)
-        return None
+def verify_password(password: str, password_hash: str | None) -> bool:
+    # Verificar contra un hash dummy cuando el usuario no existe reduce la
+    # diferencia de tiempo entre un usuario inexistente y una contraseña mala.
+    candidate = password_hash or _DUMMY_HASH
+    try:
+        return _hasher.verify(candidate, password)
+    except (VerifyMismatchError, VerificationError, InvalidHashError):
+        return False
 
 
 def _raw_secret(raw: str | SecretStr | None) -> str:
@@ -78,13 +87,17 @@ def _raw_secret(raw: str | SecretStr | None) -> str:
     return raw or ""
 
 
-def parse_auth_users(raw: str | SecretStr | None) -> AuthUserStore:
-    """Parse AUTH_USERS as ``name:role:password`` entries."""
+def parse_auth_users(raw: str | SecretStr | None) -> tuple[BootstrapUser, ...]:
+    """Parse AUTH_USERS as ``name:role:password`` entries.
+
+    Solo se usa para sembrar la tabla ``users`` la primera vez. Una vez que la
+    base tiene usuarios, la fuente de verdad es la base de datos.
+    """
     raw_value = _raw_secret(raw)
     if not raw_value.strip():
-        return AuthUserStore([])
+        return ()
 
-    users: list[_AuthUser] = []
+    users: list[BootstrapUser] = []
     names: set[str] = set()
     for index, raw_entry in enumerate(raw_value.split(","), start=1):
         entry = raw_entry.strip()
@@ -94,43 +107,49 @@ def parse_auth_users(raw: str | SecretStr | None) -> AuthUserStore:
         name, raw_role, password = (part.strip() for part in parts)
         if not name or not password:
             raise ValueError(f"AUTH_USERS entry {index} has empty fields")
+        if not USERNAME_PATTERN.fullmatch(name):
+            raise ValueError(
+                "AUTH_USERS usernames must use 3-100 letters, digits, '.', '_' or '-'",
+            )
         if name in names:
             raise ValueError("AUTH_USERS contains a duplicate name")
+        if not PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH:
+            raise ValueError(
+                f"AUTH_USERS entry {index} password must be between "
+                f"{PASSWORD_MIN_LENGTH} and {PASSWORD_MAX_LENGTH} characters",
+            )
         try:
             role = Role(raw_role.lower())
         except ValueError as error:
             raise ValueError(f"AUTH_USERS entry {index} has an invalid role") from error
         names.add(name)
-        users.append(
-            _AuthUser(
-                name=name,
-                role=role,
-                password_digest=hashlib.sha256(password.encode("utf-8")).digest(),
-            ),
-        )
-    return AuthUserStore(users)
+        users.append(BootstrapUser(username=name, role=role, password=password))
+    return tuple(users)
 
 
-@lru_cache(maxsize=8)
-def _build_auth_user_store(raw: str) -> AuthUserStore:
-    return parse_auth_users(raw)
+def jwt_secret_configured(settings: Settings) -> bool:
+    return len(_raw_secret(settings.jwt_secret)) >= 32
 
 
-def get_auth_user_store(raw: str | SecretStr | None) -> AuthUserStore:
-    return _build_auth_user_store(_raw_secret(raw))
-
-
-def create_access_token(principal: Principal, settings: Settings) -> str:
-    expires_at = datetime.now(timezone.utc) + timedelta(
-        minutes=settings.jwt_expiration_minutes,
-    )
+def create_access_token(
+    principal: Principal,
+    settings: Settings,
+    token_version: int = 0,
+) -> str:
+    secret = _raw_secret(settings.jwt_secret)
+    if len(secret) < 32:
+        raise ValueError("JWT_SECRET must be at least 32 characters")
+    issued_at = datetime.now(timezone.utc)
+    expires_at = issued_at + timedelta(minutes=settings.jwt_expiration_minutes)
     return jwt.encode(
         {
             "sub": principal.name,
             "role": principal.role.value,
+            "ver": token_version,
+            "iat": int(issued_at.timestamp()),
             "exp": expires_at,
         },
-        _raw_secret(settings.jwt_secret),
+        secret,
         algorithm="HS256",
     )
 
@@ -138,36 +157,44 @@ def create_access_token(principal: Principal, settings: Settings) -> str:
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+def _unauthorized() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Missing or invalid bearer token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 def get_principal(
     credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
     settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_db_session),
 ) -> Principal:
-    store = get_auth_user_store(settings.auth_users)
-    if not store.enabled:
+    # Import local para evitar un ciclo auth <-> repositories.
+    from backend.infrastructure.repositories import UserRepository
+
+    user_repository = UserRepository(session)
+    auth_configured = bool(_raw_secret(settings.auth_users).strip())
+    if not auth_configured and not user_repository.has_any():
         return Principal.anonymous()
     if credentials is None or credentials.scheme.lower() != "bearer":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid bearer token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise _unauthorized()
     try:
         payload = jwt.decode(
             credentials.credentials,
             _raw_secret(settings.jwt_secret),
             algorithms=["HS256"],
         )
-        principal = Principal(
-            name=str(payload["sub"]),
-            role=Role(payload["role"]),
-        )
+        user = user_repository.get_by_username(str(payload["sub"]))
     except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as error:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid bearer token",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from error
-    return principal
+        raise _unauthorized() from error
+    if (
+        user is None
+        or not user.active
+        or int(payload.get("ver", -1)) != user.token_version
+    ):
+        raise _unauthorized()
+    return Principal(name=user.username, role=Role(user.role))
 
 
 def require_role(required: Role):

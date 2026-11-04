@@ -1,7 +1,5 @@
 import { Link } from "react-router-dom";
 
-import { Button } from "@/components/ui/button";
-
 export function HomePage() {
   return (
     <section className="space-y-6">

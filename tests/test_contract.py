@@ -6,12 +6,15 @@ def test_openapi_exposes_backend_frontend_contract() -> None:
 
     assert {
         "/auth/login",
+        "/auth/me",
         "/health",
         "/incidents",
         "/incidents/{incident_id}",
         "/incidents/{incident_id}/analysis",
         "/incidents/{incident_id}/triage",
         "/review-metrics",
+        "/users",
+        "/users/{user_id}",
     } <= set(paths)
     assert paths["/incidents"]["get"]["parameters"][0]["name"] == "limit"
     assert paths["/incidents"]["get"]["parameters"][2]["name"] == "status"

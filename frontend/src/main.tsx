@@ -4,12 +4,13 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "@/app";
 import { AuthProvider } from "@/auth";
-import { ProtectedRoute } from "@/components/protected-route";
-import { IncidentsPage } from "@/pages/incidents";
-import { IncidentDetailPage } from "@/pages/incident-detail";
+import { ProtectedRoute } from "@/shared/components/protected-route";
+import { IncidentsPage } from "@/features/incidents/pages/incidents";
+import { IncidentDetailPage } from "@/features/incidents/pages/incident-detail";
 import { LoginPage } from "@/pages/login";
-import { MetricsPage } from "@/pages/metrics";
-import { NewIncidentPage } from "@/pages/new-incident";
+import { MetricsPage } from "@/features/metrics/pages/metrics";
+import { NewIncidentPage } from "@/features/incidents/pages/new-incident";
+import { UsersPage } from "@/pages/users";
 import "@/index.css";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
               <Route path="incidents" element={<IncidentsPage />} />
               <Route path="incidents/:id" element={<IncidentDetailPage />} />
               <Route path="metrics" element={<MetricsPage />} />
+              <Route path="users" element={<UsersPage />} />
             </Route>
           </Route>
         </Routes>

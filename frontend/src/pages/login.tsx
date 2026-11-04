@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 import { ApiError } from "@/api/client";
-import { useAuth } from "@/auth";
+import { useAuth } from "@/auth-context";
 
 const schema = z.object({
   username: z.string().min(1, "Indica el usuario"),
@@ -37,19 +37,40 @@ export function LoginPage() {
         <p className="text-sm font-medium text-primary">Acceso seguro</p>
         <h1 className="text-3xl font-semibold">Iniciar sesión</h1>
       </div>
-      <form className="space-y-4 rounded-lg border border-border p-6" onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        className="space-y-4 rounded-lg border border-border p-6"
+        onSubmit={form.handleSubmit(onSubmit)}
+      >
         <label className="block space-y-1">
           <span className="text-sm font-medium">Usuario</span>
-          <input className="h-10 w-full rounded-md border bg-background px-3" {...form.register("username")} />
-          {form.formState.errors.username && <span className="text-sm text-red-600">{form.formState.errors.username.message}</span>}
+          <input
+            className="h-10 w-full rounded-md border bg-background px-3"
+            {...form.register("username")}
+          />
+          {form.formState.errors.username && (
+            <span className="text-sm text-red-600">{form.formState.errors.username.message}</span>
+          )}
         </label>
         <label className="block space-y-1">
           <span className="text-sm font-medium">Contraseña</span>
-          <input className="h-10 w-full rounded-md border bg-background px-3" type="password" {...form.register("password")} />
-          {form.formState.errors.password && <span className="text-sm text-red-600">{form.formState.errors.password.message}</span>}
+          <input
+            className="h-10 w-full rounded-md border bg-background px-3"
+            type="password"
+            {...form.register("password")}
+          />
+          {form.formState.errors.password && (
+            <span className="text-sm text-red-600">{form.formState.errors.password.message}</span>
+          )}
         </label>
-        {error && <p role="alert" className="text-sm text-red-600">{error}</p>}
-        <button className="h-10 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground" disabled={form.formState.isSubmitting}>
+        {error && (
+          <p role="alert" className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
+        <button
+          className="h-10 w-full rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
+          disabled={form.formState.isSubmitting}
+        >
           {form.formState.isSubmitting ? "Entrando…" : "Entrar"}
         </button>
       </form>

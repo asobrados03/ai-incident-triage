@@ -6,5 +6,9 @@ import { afterAll, afterEach, beforeAll } from "vitest";
 import { server } from "@/test/server";
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  server.resetHandlers();
+  localStorage.clear();
+});
 afterAll(() => server.close());

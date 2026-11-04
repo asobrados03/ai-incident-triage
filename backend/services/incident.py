@@ -68,7 +68,10 @@ class IncidentService:
         incident = self._repository.get(incident_id)
         if incident is None:
             raise IncidentNotFoundError
-        if incident.status is not IncidentStatus.CREATED:
+        if incident.status not in {
+            IncidentStatus.CREATED,
+            IncidentStatus.ANALYSIS_FAILED,
+        }:
             raise IncidentAnalysisConflictError(
                 f"Incident cannot be analyzed from status {incident.status.value}",
             )
@@ -151,19 +154,26 @@ class IncidentService:
                 "status": reviewed.status.value,
             },
         )
-        changed_fields = sorted(
-            key
-            for key, value in review.model_dump(exclude_none=True).items()
-            if key != "review_comment" and value is not None
-        )
+        proposed_values = incident.triage.model_dump()
+        changed_fields = []
+        for key, value in review.model_dump(exclude_none=True).items():
+            if key in {"review_comment", "review_checklist"}:
+                continue
+            proposed = proposed_values.get(key)
+            if isinstance(value, set) or isinstance(proposed, set):
+                value = set(value or [])
+                proposed = set(proposed or [])
+            if value != proposed:
+                changed_fields.append(key)
         self._record_audit(
             actor,
             "incident.review",
             incident_id,
             {
                 "status": reviewed.status.value,
-                "changed_fields": changed_fields,
+                "changed_fields": sorted(changed_fields),
                 "has_comment": review.review_comment is not None,
+                "checklist_items": len(review.review_checklist or []),
             },
         )
         return reviewed

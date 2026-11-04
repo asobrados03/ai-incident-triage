@@ -236,6 +236,38 @@ def test_list_incidents_filters_status_and_confidence(
     assert created.json()["id"] != analyzed_id
 
 
+def test_list_incidents_can_sort_pending_by_low_confidence_first(
+    client: SyncASGIClient,
+) -> None:
+    low_payload = {
+        "title": "Sin señales",
+        "description": "xyz",
+        "steps_to_reproduce": "Abrir la pantalla.",
+        "environment": "local",
+    }
+    low = client.post("/incidents", json=low_payload)
+    assert client.post(f"/incidents/{low.json()['id']}/analysis").status_code == 200
+
+    high_payload = {
+        "title": "Error claro",
+        "description": "La aplicación muestra un error al guardar el formulario.",
+        "steps_to_reproduce": "Pulsar guardar.",
+        "environment": "local",
+    }
+    high = client.post("/incidents", json=high_payload)
+    assert client.post(f"/incidents/{high.json()['id']}/analysis").status_code == 200
+
+    default_order = client.get("/incidents", params={"status": "analyzed"}).json()
+    sorted_order = client.get(
+        "/incidents",
+        params={"status": "analyzed", "sort": "confidence"},
+    ).json()
+
+    assert default_order["items"][0]["id"] == high.json()["id"]
+    assert sorted_order["items"][0]["id"] == low.json()["id"]
+    assert sorted_order["items"][0]["confidence"] == "low"
+
+
 def test_create_incident_validates_required_and_length_fields(
     client: SyncASGIClient,
 ) -> None:
@@ -607,3 +639,88 @@ def test_review_metrics_are_empty_without_reviews(client: SyncASGIClient) -> Non
         },
         "corrections_by_confidence": {},
     }
+
+
+def test_review_persists_the_human_checklist(client: SyncASGIClient) -> None:
+    incident_id = create_analyzed_incident(client)
+
+    response = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={
+            "review_checklist": [
+                "Revisé severidad y prioridad",
+                "Revisé la información faltante",
+            ],
+            "review_comment": "Checklist completada.",
+        },
+    )
+
+    assert response.status_code == 200
+    review = response.json()["triage"]["review"]
+    assert review["review_checklist"] == [
+        "Revisé severidad y prioridad",
+        "Revisé la información faltante",
+    ]
+
+    fetched = client.get(f"/incidents/{incident_id}")
+    assert fetched.json()["triage"]["review"]["review_checklist"] == review[
+        "review_checklist"
+    ]
+
+
+def test_review_audit_only_lists_fields_that_actually_changed(
+    client: SyncASGIClient,
+) -> None:
+    incident_id = create_analyzed_incident(client)
+    accepted = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={"category": "bug"},
+    )
+    assert accepted.status_code == 200
+
+    audit = client.get(
+        "/audit",
+        params={"action": "incident.review", "resource_id": incident_id},
+    )
+
+    assert audit.status_code == 200
+    details = audit.json()["items"][0]["details"]
+    assert details["changed_fields"] == []
+    assert details["has_comment"] is False
+    assert details["checklist_items"] == 0
+
+
+def test_review_rejects_oversized_checklist(client: SyncASGIClient) -> None:
+    incident_id = create_analyzed_incident(client)
+
+    response = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={"review_checklist": [f"item-{index}" for index in range(21)]},
+    )
+
+    assert response.status_code == 422
+
+
+def test_failed_analysis_can_be_retried(client: SyncASGIClient) -> None:
+    class UnavailableAnalyzer:
+        def analyze(self, incident):
+            raise AnalyzerProviderUnavailableError("Ollama unavailable")
+
+    def get_failing_service(
+        session: Session = Depends(get_db_session),
+    ) -> IncidentService:
+        return IncidentService(IncidentRepository(session), UnavailableAnalyzer())
+
+    app.dependency_overrides[get_incident_service] = get_failing_service
+    created = client.post(
+        "/incidents",
+        json={"title": "Fallo", "description": "No funciona."},
+    )
+    incident_id = created.json()["id"]
+    assert client.post(f"/incidents/{incident_id}/analysis").status_code == 502
+
+    app.dependency_overrides.pop(get_incident_service)
+    retried = client.post(f"/incidents/{incident_id}/analysis")
+
+    assert retried.status_code == 200
+    assert retried.json()["status"] == "analyzed"

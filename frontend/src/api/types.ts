@@ -1,17 +1,9 @@
-export type IncidentStatus =
-  | "created"
-  | "analyzing"
-  | "analyzed"
-  | "analysis_failed"
-  | "reviewed";
+export type IncidentStatus = "created" | "analyzing" | "analyzed" | "analysis_failed" | "reviewed";
 
 export type AnalysisConfidence = "low" | "medium" | "high";
+export type Role = "reader" | "writer" | "admin";
 export type IncidentCategory =
-  | "bug"
-  | "feature"
-  | "documentation"
-  | "configuration"
-  | "performance";
+  "bug" | "feature" | "documentation" | "configuration" | "performance";
 export type IncidentSeverity = "low" | "medium" | "high" | "critical";
 export type IncidentPriority = "low" | "medium" | "high" | "urgent";
 
@@ -59,6 +51,7 @@ export interface TriageReview {
   reviewed: boolean;
   source: string;
   review_comment: string | null;
+  review_checklist: string[];
   reviewed_at: string;
   final: TriageResult;
 }
@@ -103,6 +96,7 @@ export interface TriageReviewPayload {
   justification?: string;
   confidence?: AnalysisConfidence;
   review_comment?: string;
+  review_checklist?: string[];
 }
 
 export interface FieldAccuracy {
@@ -131,8 +125,50 @@ export interface LoginResponse {
   access_token: string;
   token_type: "bearer";
   expires_in: number;
+  user: UserResponse;
+}
+
+export interface PrincipalResponse {
+  name: string;
+  role: Role;
+  authenticated: boolean;
+}
+
+export interface UserResponse {
+  id: string;
+  username: string;
+  role: Role;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+  last_login_at: string | null;
+}
+
+export interface UserListPage {
+  items: UserResponse[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface UserCreatePayload {
+  username: string;
+  password: string;
+  role: Role;
+}
+
+export interface UserUpdatePayload {
+  password?: string;
+  role?: Role;
+  active?: boolean;
 }
 
 export interface ApiErrorPayload {
-  detail?: string;
+  detail?: string | ValidationIssue[];
+}
+
+export interface ValidationIssue {
+  loc?: Array<string | number>;
+  msg?: string;
+  type?: string;
 }

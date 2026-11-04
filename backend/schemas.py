@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -33,10 +33,60 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=200)
 
 
+class UserCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    username: str = Field(
+        min_length=3,
+        max_length=100,
+        pattern=r"^[A-Za-z0-9._-]+$",
+    )
+    password: str = Field(min_length=12, max_length=200)
+    role: Role = Role.READER
+
+
+class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    password: str | None = Field(default=None, min_length=12, max_length=200)
+    role: Role | None = None
+    active: bool | None = None
+
+    @model_validator(mode="after")
+    def require_update_content(self) -> "UserUpdate":
+        if not any(value is not None for value in self.model_dump().values()):
+            raise ValueError("Update must change at least one field")
+        return self
+
+
+class UserResponse(BaseModel):
+    id: UUID
+    username: str
+    role: Role
+    active: bool
+    created_at: datetime
+    updated_at: datetime
+    last_login_at: datetime | None = None
+
+
+class UserListPage(BaseModel):
+    items: list[UserResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class PrincipalResponse(BaseModel):
+    name: str
+    role: Role
+    authenticated: bool
+
+
 class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int
+    user: UserResponse
 
 
 class TriageResult(BaseModel):
@@ -64,6 +114,10 @@ class TriageReviewRequest(BaseModel):
     justification: str | None = Field(default=None, min_length=1, max_length=2000)
     confidence: AnalysisConfidence | None = None
     review_comment: str | None = Field(default=None, max_length=2000)
+    review_checklist: list[Annotated[str, Field(min_length=1, max_length=200)]] | None = Field(
+        default=None,
+        max_length=20,
+    )
 
     @model_validator(mode="after")
     def require_review_content(self) -> "TriageReviewRequest":
@@ -76,6 +130,7 @@ class TriageReviewResponse(BaseModel):
     reviewed: bool
     source: str
     review_comment: str | None
+    review_checklist: list[str] = Field(default_factory=list)
     reviewed_at: datetime
     final: TriageResult
 
