@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     audit_retention_days: int = 365
 
     model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
         env_prefix="",
         case_sensitive=False,
         extra="ignore",
