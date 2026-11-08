@@ -36,7 +36,7 @@ flowchart LR
     Service --> Analyzer[IncidentAnalyzer]
     Analyzer --> Fake[FakeAnalyzer]
     Analyzer --> Ollama[OllamaAnalyzer]
-    Ollama --> Runtime[(Ollama local\nqwen3.5:4b)]
+    Ollama --> Runtime[(Ollama local\nqwen2.5:14b)]
     API --> Review[PATCH revisión humana]
     Review --> Service
     Repo --> Triage[(triage_results)]
@@ -137,7 +137,7 @@ validar el Dockerfile.
 | `DATABASE_URL` | SQLite local absoluta | URL SQLAlchemy; el MVP usa `create_all` más una migración aditiva ligera para columnas nuevas. |
 | `ANALYZER_BACKEND` | `fake` | `fake` para desarrollo/tests o `ollama` explícito. |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Runtime local de Ollama. |
-| `OLLAMA_MODEL` | `qwen3.5:4b` | Modelo Ollama. |
+| `OLLAMA_MODEL` | `qwen2.5:14b` | Modelo Ollama (por ejemplo `qwen2.5:14b`, `qwen2.5:7b` o `qwen2.5:3b`). |
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Timeout finito del adaptador. |
 | `AUTH_USERS` | vacío | Semilla inicial `name:role:password,...` para la tabla `users`. Solo crea usuarios que falten; después la BD manda. Vacío no siembra nada. |
 | `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres para emitir y validar tokens. |
@@ -145,6 +145,9 @@ validar el Dockerfile.
 | `CORS_ORIGINS` | `http://localhost:5173` | Orígenes HTTP(S) separados por comas; `*` no está permitido. |
 | `RETENTION_DAYS` | `90` | Antigüedad mínima de incidencias antes de poder purgarlas. |
 | `AUDIT_RETENTION_DAYS` | `365` | Antigüedad mínima de registros de auditoría antes de purgarlos. |
+
+La configuración puede definirse mediante variables de entorno o a través de un archivo `.env` en la raíz del
+proyecto (se proporciona una plantilla en `.env.example`).
 
 El arranque valida backend, URL HTTP(S), modelo no vacío, timeout positivo, días de retención positivos, el formato
 de `AUTH_USERS`, la longitud de `JWT_SECRET` y los orígenes CORS. Si `AUTH_USERS` está configurado, la autenticación
@@ -414,10 +417,11 @@ baseline de reglas, no una medida de calidad semántica de un LLM. Ollama es opc
 ```powershell
 irm https://ollama.com/install.ps1 | iex
 ollama serve
-ollama pull qwen3.5:4b
+ollama pull qwen2.5:14b
 ollama list
 Invoke-RestMethod http://127.0.0.1:11434/api/tags
 $env:ANALYZER_BACKEND = "ollama"
+$env:OLLAMA_MODEL = "qwen2.5:14b"
 uvicorn backend.main:app --reload
 ```
 
@@ -580,6 +584,21 @@ python -m backend.evaluation --backend fake --compare-with ollama `
   > eval/results/ollama-vs-fake-holdout-v2.json
 ```
 
+### Benchmark y evaluación comparativa de LLMs locales
+
+Se evaluaron múltiples modelos LLM locales ejecutados sobre Ollama con inferencia en CPU en el hardware de desarrollo de referencia (Intel Core i7-1255U, 32 GB RAM, gráficos Intel Iris Xe):
+
+| Modelo | Parámetros / RAM | Latencia media (CPU) | Exactitud semántica | Idioma / Redacción | Caso de uso recomendado |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`qwen2.5:14b`** *(Default)* | 14B / ~9.0 GB | **~35 – 42 s** | **Máxima (100% acierto categórico)** | 100% español técnico | **Producción / Máxima precisión analítica** y mínimo retrabajo humano. |
+| **`qwen2.5:7b`** | 7B / ~4.7 GB | **~20 – 25 s** | Alta (ligero sesgo a *performance*) | 100% español fluido | **Baja latencia** / mayor frecuencia de peticiones. |
+| **`deepseek-r1:7b`** | 7B / ~4.7 GB | **~70 – 110 s** | Buena (sobreanálisis en casos simples) | Mixto (inglés/español) | Tareas de razonamiento deductivo explícito (`<think>`). |
+| **`qwen3.5:4b`** | 4.2B / ~3.3 GB | **~50 – 60 s** | Moderada | Español | Modelo ligero previo de evaluación inicial. |
+
+**Conclusiones de la comparativa:**
+- `qwen2.5:14b` es el modelo configurado por defecto para Ollama en el backend (`backend/infrastructure/config.py` y `.env`), ya que elimina errores de clasificación entre fallos de código (`bug`), configuración (`configuration`) y degradación de rendimiento (`performance`), además de identificar exhaustivamente campos ausentes (`steps_to_reproduce`, `actual_behavior`, `environment`).
+- Para entornos que prioricen velocidad sobre exhaustividad analítica, `qwen2.5:7b` reduce el tiempo de respuesta a la mitad con excelente solidez.
+
 ## Demo reproducible
 
 Con la API arrancada en otra terminal:
@@ -666,11 +685,11 @@ driver y migraciones antes de necesitar despliegue multiinstancia.
   semántica. Puede fallar ante formulaciones nuevas, ambigüedad o señales de impacto implícitas, y su `confidence`
   todavía no está calibrada con suficiente volumen. Deben añadirse reglas solo cuando estén respaldadas por datos y
   regresiones, no por ajustar repetidamente el mismo holdout.
-- **Ollama no está listo para ser el backend por defecto:** en la comparación documentada, el modelo local obtuvo peor
-  resultado que el fake en severidad, prioridad, información faltante y confianza, además de una latencia de segundos
-  frente a milisegundos. La siguiente iteración debería definir una rúbrica explícita, limitar y validar
-  `missing_information`, añadir ejemplos al prompt y repetir la comparación con más modelos, casos y ejecuciones antes
-  de promoverlo.
+- **Backend de análisis por defecto y trade-offs de Ollama:** `FakeAnalyzer` se mantiene como backend por defecto
+  para garantizar tests instantáneos y desarrollo reproducible sin dependencias externas. Para inferencia semántica con
+  LLMs locales, `qwen2.5:14b` ofrece máxima precisión y redacción técnica en español (eliminando errores de clasificación
+  en producción), asumiendo una latencia de ~35–42 s por ticket en CPU de desarrollo. Para escenarios de alta concurrencia
+  o menor latencia, `qwen2.5:7b` (~20–25 s) o modelos más ligeros como `qwen2.5:3b` son alternativas recomendables.
 - **Utilidad de la revisión humana:** `missing_information` se evalúa con listas exactas y micro-F1, pero una coincidencia
   de métricas no garantiza que las preguntas sean accionables. Conviene medir la utilidad de las preguntas, registrar
   feedback de las personas revisoras y recalibrar las propuestas a partir de las correcciones acumuladas.

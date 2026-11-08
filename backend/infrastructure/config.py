@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     database_url: str = DEFAULT_DATABASE_URL
     analyzer_backend: str = "fake"
     ollama_base_url: str = "http://127.0.0.1:11434"
-    ollama_model: str = "qwen3.5:4b"
+    ollama_model: str = "qwen2.5:14b"
     ollama_timeout_seconds: float = 180.0
     auth_users: SecretStr = SecretStr("")
     jwt_secret: SecretStr = SecretStr("")
