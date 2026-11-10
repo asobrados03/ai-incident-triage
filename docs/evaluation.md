@@ -107,7 +107,8 @@ Ejecutada el 30 de octubre de 2026 sobre `evaluation/data/incidents-holdout-v2.j
 - Comando:
   `python -m evaluation --backend fake --compare-with ollama --dataset evaluation/data/incidents-holdout-v2.json --summary`
 - Artefactos: `evaluation/results/ollama-vs-fake-holdout-v2.json` (detalle por caso) y
-  `evaluation/results/ollama-vs-fake-holdout-v2.txt` (resumen).
+  `evaluation/results/ollama-vs-fake-holdout-v2.txt` (resumen). Se versionan como snapshot de referencia de esa
+  ejecución; se regeneran solo con el comando de la sección siguiente y no son datos de runtime.
 
 | Backend | Category | Severity | Priority | Missing info | Confidence | Macro-F1 cat / sev / prio | p50 | p95 | Errores | Casos completos |
 |---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|

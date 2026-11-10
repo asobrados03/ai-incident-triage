@@ -1,0 +1,21 @@
+# Normaliza los finales de línea en el repositorio para evitar diffs espurios
+# entre Windows, macOS y Linux (incluida la CI).
+* text=auto eol=lf
+
+# Scripts nativos de Windows: CRLF para que PowerShell y cmd los lean bien.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binarios: Git no debe intentar normalizarlos.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.db binary
