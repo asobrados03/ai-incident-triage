@@ -21,10 +21,19 @@ COPY pyproject.toml README.md ./
 COPY backend ./backend
 
 RUN python -m pip install --no-cache-dir . \
-    && mkdir -p /data
+    && rm -rf build *.egg-info \
+    && groupadd --system --gid 10001 app \
+    && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app \
+    && mkdir -p /data \
+    && chown -R app:app /data
 
-COPY --from=frontend /frontend/dist ./frontend/dist
+COPY --chown=app:app --from=frontend /frontend/dist ./frontend/dist
+
+USER app
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python -c "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status == 200 else 1)"
 
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

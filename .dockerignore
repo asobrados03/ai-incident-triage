@@ -1,10 +1,14 @@
 .git
 .gitignore
+.gitattributes
 .idea
 .venv
 __pycache__
 *.py[cod]
 .pytest_cache
+.mypy_cache
+.ruff_cache
+build/
 *.egg-info
 incidents.db
 incidents.db-*

@@ -137,11 +137,13 @@ el cliente use rutas relativas.
 
 ```powershell
 docker build -t triaje-api .
-docker run --rm -p 8000:8000 -v "${PWD}/data:/data" triaje-api
+docker run --rm -p 8000:8000 -v triaje-data:/data triaje-api
 ```
 
 La imagen define `DATABASE_URL=sqlite:////data/incidents.db`. El volumen es obligatorio para conservar incidencias y
-usuarios: sin él, el contenedor escribe en su capa efímera y los datos desaparecen al recrearlo.
+usuarios: sin él, el contenedor escribe en su capa efímera y los datos desaparecen al recrearlo. Se recomienda un
+volumen nombrado porque el proceso corre como usuario `app` (UID 10001); si prefieres un bind mount en Linux, ajusta
+los permisos del directorio (`chown -R 10001:10001 ./data`). La imagen declara además un `HEALTHCHECK` contra `/health`.
 
 La interfaz queda en `http://127.0.0.1:8000/`, la documentación OpenAPI sigue en `/docs` y el health check en
 `/health`. FastAPI sirve `frontend/dist` y devuelve `index.html` en las rutas del SPA (`/metrics`, `/incidents/:id`,
