@@ -105,9 +105,10 @@ uvicorn backend.main:app --reload
 - Los roles son jerárquicos: `reader < writer < admin`.
 - Sin token o con token inválido la API devuelve `401`; con rol insuficiente, `403`.
 - `GET /health` permanece público para sondas de disponibilidad.
-- Si `AUTH_USERS` está vacío y la tabla `users` no tiene filas, la autenticación se deshabilita y se permite todo el
-  acceso. Es el modo por defecto para desarrollo local, tests y demo. Si `AUTH_USERS` está configurado, la auth se
-  exige aunque la tabla esté vacía (fail-closed).
+- Si no hay `AUTH_USERS` ni filas en `users`, la API es fail-closed y los endpoints protegidos devuelven `401`. El
+  acceso anónimo con rol `admin` solo se habilita de forma explícita con `ALLOW_ANONYMOUS_BOOTSTRAP=true`, pensado para
+  demos locales; el arranque registra un aviso. Si `AUTH_USERS` está configurado, la auth se exige aunque la tabla esté
+  vacía.
 
 | Rol | Permisos |
 |---|---|
@@ -409,7 +410,7 @@ comandos de build, ejecución y variables están en [development.md](development
   contraseñas usan Argon2id con salt único y nunca se devuelven, registran ni auditan. Los JWT incluyen `ver`, expiran y
   se revalidan contra la BD en cada petición, por lo que cambiar contraseña o desactivar una cuenta revoca el acceso.
   Los roles son jerárquicos, el CRUD de usuarios es solo para `admin` y hay guardas para no quedarse sin administrador
-  activo. Si `AUTH_USERS` está configurado, la auth se exige aunque la tabla esté vacía.
+  activo. Sin `AUTH_USERS` ni usuarios la API responde `401` (fail-closed); el bootstrap anónimo es opt-in.
 - **UI por rol:** el frontend consulta `/auth/me`; `reader` no ve acciones de escritura y solo `admin` ve Usuarios. El
   detalle muestra un diff IA→humano con los campos modificados y la checklist persistida.
 - **Auditoría:** `audit_logs` registra actor, rol, acción, recurso y metadatos operativos. Se evita guardar texto libre

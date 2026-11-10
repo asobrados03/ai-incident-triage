@@ -225,7 +225,11 @@ def get_principal(
     user_repository = UserRepository(session)
     auth_configured = bool(_raw_secret(settings.auth_users).strip())
     if not auth_configured and not user_repository.has_any():
-        return Principal.anonymous()
+        # Sin semilla ni usuarios persistidos: el acceso anónimo solo se permite
+        # si se habilita explícitamente para demos locales. Por defecto, fail-closed.
+        if settings.allow_anonymous_bootstrap:
+            return Principal.anonymous()
+        raise _unauthorized()
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise _unauthorized()
     try:

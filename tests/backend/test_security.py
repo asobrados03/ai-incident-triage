@@ -1,5 +1,5 @@
 import asyncio
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 import httpx
 import pytest
@@ -750,3 +750,120 @@ def test_user_actions_are_audited_without_secrets(
     assert audit.json()["items"][0]["resource_type"] == "user"
     assert "auditado-password" not in audit.text
     assert "argon2" not in audit.text
+
+
+@pytest.fixture
+def empty_db_client(
+    tmp_path,
+) -> Iterator[Callable[[bool], SyncASGIClient]]:
+    """Cliente con BD vacía y settings controlados para probar el bootstrap."""
+    engines = []
+
+    def build(allow_anonymous_bootstrap: bool) -> SyncASGIClient:
+        database_engine = create_engine(
+            f"sqlite:///{tmp_path / f'empty-{len(engines)}.db'}",
+            connect_args={"check_same_thread": False},
+        )
+        engines.append(database_engine)
+        Base.metadata.create_all(database_engine)
+        test_session_factory = sessionmaker(
+            bind=database_engine,
+            autocommit=False,
+            autoflush=False,
+        )
+
+        def get_test_session() -> Iterator[Session]:
+            session = test_session_factory()
+            try:
+                yield session
+            finally:
+                session.close()
+
+        test_settings = Settings(
+            auth_users="",
+            jwt_secret="",
+            allow_anonymous_bootstrap=allow_anonymous_bootstrap,
+        )
+        app.dependency_overrides[get_db_session] = get_test_session
+        app.dependency_overrides[get_settings] = lambda: test_settings
+        return SyncASGIClient()
+
+    try:
+        yield build
+    finally:
+        app.dependency_overrides.clear()
+        for database_engine in engines:
+            database_engine.dispose()
+
+
+def test_protected_endpoints_are_closed_without_users_by_default(
+    empty_db_client: Callable[[bool], SyncASGIClient],
+) -> None:
+    client = empty_db_client(False)
+
+    assert client.get("/health").status_code == 200
+    for path in ("/incidents", "/users", "/audit", "/review-metrics"):
+        assert client.get(path).status_code == 401
+
+
+def test_anonymous_bootstrap_is_explicitly_opt_in(
+    empty_db_client: Callable[[bool], SyncASGIClient],
+) -> None:
+    client = empty_db_client(True)
+
+    assert client.get("/incidents").status_code == 200
+    assert client.get("/users").status_code == 200
+
+
+def test_persisted_users_require_token_even_without_auth_users(
+    tmp_path,
+) -> None:
+    database_engine = create_engine(
+        f"sqlite:///{tmp_path / 'persisted.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(database_engine)
+    test_session_factory = sessionmaker(
+        bind=database_engine,
+        autocommit=False,
+        autoflush=False,
+    )
+
+    def get_test_session() -> Iterator[Session]:
+        session = test_session_factory()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    seed_session = test_session_factory()
+    try:
+        UserService(UserRepository(seed_session)).bootstrap(
+            parse_auth_users(AUTH_USERS),
+        )
+    finally:
+        seed_session.close()
+
+    test_settings = Settings(
+        auth_users="",
+        jwt_secret=JWT_SECRET,
+        allow_anonymous_bootstrap=False,
+    )
+    app.dependency_overrides[get_db_session] = get_test_session
+    app.dependency_overrides[get_settings] = lambda: test_settings
+    try:
+        client = SyncASGIClient()
+        assert client.get("/incidents").status_code == 401
+
+        login = client.post(
+            "/auth/login",
+            json={"username": "reader", "password": PASSWORDS["reader"]},
+        )
+        assert login.status_code == 200
+        headers = {
+            "Authorization": f"Bearer {login.json()['access_token']}",
+        }
+        assert client.get("/incidents", headers=headers).status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+        database_engine.dispose()

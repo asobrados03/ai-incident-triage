@@ -39,6 +39,15 @@ def bootstrap_users() -> int:
 async def lifespan(_: FastAPI):
     configure_logging()
     validate_runtime_settings(settings)
+    if settings.allow_anonymous_bootstrap:
+        logger.warning(
+            "anonymous_bootstrap_enabled",
+            extra={
+                "auth_users_configured": bool(
+                    settings.auth_users.get_secret_value().strip(),
+                ),
+            },
+        )
     create_tables(engine)
     created = bootstrap_users()
     if created:

@@ -54,7 +54,8 @@ Rutas frontend disponibles:
 - `/login`: autenticación.
 
 La UI conoce el rol: `reader` no ve acciones de escritura y solo `admin` ve Usuarios. Una respuesta 401 limpia la
-sesión local y redirige al acceso; si el backend informa `authenticated: false`, la app funciona en modo anónimo.
+sesión local y redirige al acceso; si el backend informa `authenticated: false` (bootstrap anónimo habilitado), la app
+funciona en modo anónimo.
 
 ## Configuración
 
@@ -70,22 +71,26 @@ sesión local y redirige al acceso; si el backend informa `authenticated: false`
 | `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres para emitir y validar tokens. |
 | `JWT_EXPIRATION_MINUTES` | `15` | Duración del access token (por defecto 15 minutos). |
 | `REFRESH_TOKEN_EXPIRATION_DAYS` | `7` | Duración del refresh token de larga duración (por defecto 7 días). |
+| `ALLOW_ANONYMOUS_BOOTSTRAP` | `false` | Con `true`, permite acceso anónimo con rol `admin` cuando `AUTH_USERS` está vacío y la tabla `users` no tiene filas. Solo para demos locales; en producción debe quedar en `false`. |
 | `CORS_ORIGINS` | `http://localhost:5173` | Orígenes HTTP(S) separados por comas; `*` no está permitido. |
 | `RETENTION_DAYS` | `90` | Antigüedad mínima de incidencias antes de poder purgarlas. |
 | `AUDIT_RETENTION_DAYS` | `365` | Antigüedad mínima de registros de auditoría antes de purgarlos. |
 
 La configuración puede definirse mediante variables de entorno o a través de un archivo `.env` en la raíz del proyecto
-(se proporciona una plantilla en `.env.example`). La plantilla de ejemplo activa Ollama; si no defines
-`ANALYZER_BACKEND`, el valor por defecto del código es `fake`.
+(se proporciona una plantilla en `.env.example`). La plantilla usa `ANALYZER_BACKEND=fake` para arrancar sin
+dependencias; descomenta `ollama` cuando tengas el runtime local disponible.
 
 El arranque valida backend, URL HTTP(S), modelo no vacío, timeout positivo, días de retención positivos, el formato de
-`AUTH_USERS`, la longitud de `JWT_SECRET` y los orígenes CORS. Si `AUTH_USERS` está configurado, la autenticación se
-exige aunque la tabla `users` esté vacía (fail-closed): no se degrada a modo anónimo por un fallo de bootstrap. El
-comportamiento de autenticación, roles y revocación se detalla en [architecture.md](architecture.md#autenticación-y-autorización).
+`AUTH_USERS`, la longitud de `JWT_SECRET` y los orígenes CORS. La autenticación es fail-closed por defecto: si no hay
+`AUTH_USERS` ni usuarios persistidos, los endpoints protegidos devuelven `401`. El acceso anónimo con rol `admin` solo
+se habilita explícitamente con `ALLOW_ANONYMOUS_BOOTSTRAP=true` para demos locales; el arranque registra un aviso
+cuando ese modo está activo. Si `AUTH_USERS` está configurado, la autenticación se exige aunque la tabla `users` esté
+vacía. El comportamiento de autenticación, roles y revocación se detalla en
+[architecture.md](architecture.md#autenticación-y-autorización).
 
 ## Tests y validaciones
 
-La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **148 tests backend** y **37 tests
+La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **151 tests backend** y **37 tests
 frontend** (7 archivos).
 
 ```powershell
@@ -121,8 +126,8 @@ incluidas en PowerShell. También acepta una URL alternativa y credenciales JWT 
 .\scripts\demo.ps1 -Username "soporte" -Password $env:WRITER_PASSWORD
 ```
 
-El token solo se usa para construir la cabecera `Authorization`; no se imprime ni se escribe en disco. Con la
-autenticación deshabilitada (`AUTH_USERS` vacío) el script funciona sin credenciales.
+El token solo se usa para construir la cabecera `Authorization`; no se imprime ni se escribe en disco. Sin
+`AUTH_USERS`, el script requiere `ALLOW_ANONYMOUS_BOOTSTRAP=true` para ejecutarse sin credenciales.
 
 ## Docker
 
@@ -132,9 +137,11 @@ el cliente use rutas relativas.
 
 ```powershell
 docker build -t triaje-api .
-docker run --rm -p 8000:8000 -v "${PWD}/data:/data" `
-  -e DATABASE_URL=sqlite:////data/incidents.db triaje-api
+docker run --rm -p 8000:8000 -v "${PWD}/data:/data" triaje-api
 ```
+
+La imagen define `DATABASE_URL=sqlite:////data/incidents.db`. El volumen es obligatorio para conservar incidencias y
+usuarios: sin él, el contenedor escribe en su capa efímera y los datos desaparecen al recrearlo.
 
 La interfaz queda en `http://127.0.0.1:8000/`, la documentación OpenAPI sigue en `/docs` y el health check en
 `/health`. FastAPI sirve `frontend/dist` y devuelve `index.html` en las rutas del SPA (`/metrics`, `/incidents/:id`,
@@ -143,8 +150,10 @@ etc.) para que funcionen al refrescar o entrar directamente.
 La imagen no incluye `incidents.db`, tests, `evaluation/`, `.venv`, artefactos locales ni secretos. El contenedor no
 inicia Ollama: debe ejecutarse aparte. Si lo usas desde el contenedor, ajusta `OLLAMA_BASE_URL` a una dirección
 alcanzable (por ejemplo `http://host.docker.internal:11434`; en Linux añade
-`--add-host=host.docker.internal:host-gateway`). Si activas la autenticación, inyecta `AUTH_USERS` y `JWT_SECRET` con
-`--env-file` o un gestor de secretos; no la incluyas en la imagen.
+`--add-host=host.docker.internal:host-gateway`). La imagen arranca en modo fail-closed: sin `AUTH_USERS` y sin usuarios
+en la BD, los endpoints protegidos devuelven `401`. Para el primer arranque inyecta `AUTH_USERS` y `JWT_SECRET` con
+`--env-file` o un gestor de secretos; no los incluyas en la imagen. `ALLOW_ANONYMOUS_BOOTSTRAP=true` queda reservado a
+demos locales.
 
 Si necesitas compilar el frontend contra otro origen de API, usa
 `docker build --build-arg VITE_API_URL=https://api.example.com -t triaje-api .` y configura `CORS_ORIGINS` en la API.

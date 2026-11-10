@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     jwt_secret: SecretStr = SecretStr("")
     jwt_expiration_minutes: int = 15
     refresh_token_expiration_days: int = 7
+    allow_anonymous_bootstrap: bool = False
     cors_origins: str = "http://localhost:5173"
     retention_days: int = 90
     audit_retention_days: int = 365

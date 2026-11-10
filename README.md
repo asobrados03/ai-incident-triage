@@ -15,6 +15,7 @@ Requiere Python 3.11 o superior y Node 24 o superior.
 Backend:
 
 ```powershell
+Copy-Item .env.example .env
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[test]"
@@ -22,7 +23,9 @@ uvicorn backend.main:app --reload
 ```
 
 La API queda en `http://127.0.0.1:8000`, la documentación OpenAPI en `/docs` y el health check público en `/health`.
-El backend de análisis por defecto es `fake`, así que no necesitas Ollama para arrancar.
+La plantilla `.env` usa el backend `fake`, así que no necesitas Ollama para arrancar, y siembra los usuarios de ejemplo:
+`admin` / `admin-password-12345678`, `soporte` / `soporte-pass-12345678` y `auditor` / `auditor-pass-12345678`.
+Cambia esas credenciales antes de exponer la API fuera de localhost.
 
 Frontend, en otra terminal:
 
@@ -44,7 +47,7 @@ npm test -- --run
 npm run build
 ```
 
-Estado actual: **148 tests backend** y **37 tests frontend** (7 archivos). La suite no realiza llamadas a Ollama.
+Estado actual: **151 tests backend** y **37 tests frontend** (7 archivos). La suite no realiza llamadas a Ollama.
 
 ## Documentación
 

@@ -30,6 +30,7 @@ jobs:
           curl -fsS http://127.0.0.1:8000/health
           curl -fsS http://127.0.0.1:8000/ | grep -q '<div id="root"></div>'
           curl -fsS http://127.0.0.1:8000/metrics | grep -q '<div id="root"></div>'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/incidents)" = "401"
       - name: Stop smoke container
         if: always()
         run: docker rm -f triage-api-ci || true

@@ -12,7 +12,8 @@ RUN VITE_API_URL="$VITE_API_URL" npm run build
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    DATABASE_URL=sqlite:////data/incidents.db
 
 WORKDIR /app
 
