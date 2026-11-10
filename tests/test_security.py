@@ -141,6 +141,111 @@ def test_login_issues_bearer_token(secure_client: SyncASGIClient) -> None:
     assert response.status_code == 200
     assert response.json()["token_type"] == "bearer"
     assert response.json()["access_token"]
+    assert response.json()["refresh_token"]
+    assert response.json()["expires_in"] == 15 * 60
+    assert response.json()["refresh_expires_in"] == 7 * 86400
+
+
+def test_refresh_token_cannot_be_used_as_bearer_authorization(
+    secure_client: SyncASGIClient,
+) -> None:
+    login = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": PASSWORDS["writer"]},
+    )
+    assert login.status_code == 200
+    refresh_token = login.json()["refresh_token"]
+
+    # Intentar usar el refresh token en endpoints protegidos debe fallar con 401
+    response = secure_client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {refresh_token}"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Missing or invalid bearer token"
+
+
+def test_refresh_endpoint_issues_new_token_pair_with_rotation(
+    secure_client: SyncASGIClient,
+) -> None:
+    login = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": PASSWORDS["writer"]},
+    )
+    assert login.status_code == 200
+    initial_refresh = login.json()["refresh_token"]
+
+    refresh_response = secure_client.post(
+        "/auth/refresh",
+        json={"refresh_token": initial_refresh},
+    )
+    assert refresh_response.status_code == 200
+    data = refresh_response.json()
+    assert data["token_type"] == "bearer"
+    assert data["access_token"]
+    assert data["refresh_token"]
+    assert data["expires_in"] == 15 * 60
+    assert data["refresh_expires_in"] == 7 * 86400
+
+    # El nuevo access token permite autenticarse
+    me = secure_client.get(
+        "/auth/me",
+        headers={"Authorization": f"Bearer {data['access_token']}"},
+    )
+    assert me.status_code == 200
+    assert me.json()["name"] == "writer"
+
+
+def test_refresh_endpoint_rejects_access_token_and_invalid_tokens(
+    secure_client: SyncASGIClient,
+) -> None:
+    login = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": PASSWORDS["writer"]},
+    )
+    access_token = login.json()["access_token"]
+
+    # Enviar un access token en vez de un refresh token debe dar 401
+    bad_type = secure_client.post(
+        "/auth/refresh",
+        json={"refresh_token": access_token},
+    )
+    assert bad_type.status_code == 401
+    assert bad_type.json()["detail"] == "Missing or invalid bearer token"
+
+    # Enviar un token malformado
+    invalid = secure_client.post(
+        "/auth/refresh",
+        json={"refresh_token": "not-a-valid-jwt-token"},
+    )
+    assert invalid.status_code == 401
+    assert invalid.json()["detail"] == "Missing or invalid bearer token"
+
+
+def test_refresh_tokens_are_revoked_on_logout(
+    secure_client: SyncASGIClient,
+) -> None:
+    login = secure_client.post(
+        "/auth/login",
+        json={"username": "reader", "password": PASSWORDS["reader"]},
+    )
+    access_token = login.json()["access_token"]
+    refresh_token = login.json()["refresh_token"]
+
+    # Logout revoca la sesión
+    logout_res = secure_client.post(
+        "/auth/logout",
+        headers={"Authorization": f"Bearer {access_token}"},
+    )
+    assert logout_res.status_code == 204
+
+    # El refresh token previo deja de ser válido
+    refresh_attempt = secure_client.post(
+        "/auth/refresh",
+        json={"refresh_token": refresh_token},
+    )
+    assert refresh_attempt.status_code == 401
+    assert refresh_attempt.json()["detail"] == "Missing or invalid bearer token"
 
 
 def test_full_cycle_bootstrap_login_request_password_change_and_revocation(

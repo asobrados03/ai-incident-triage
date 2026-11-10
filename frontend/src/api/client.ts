@@ -7,6 +7,7 @@ import type {
   LoginResponse,
   PrincipalResponse,
   ReviewMetricsResponse,
+  TokenRefreshResponse,
   TriageReviewPayload,
   UserCreatePayload,
   UserListPage,
@@ -18,18 +19,41 @@ const configuredApiUrl = import.meta.env.VITE_API_URL;
 const API_BASE_URL = (
   configuredApiUrl ?? (import.meta.env.MODE === "test" ? "" : "http://127.0.0.1:8000")
 ).replace(/\/$/, "");
-const TOKEN_KEY = "triage-access-token";
+const ACCESS_TOKEN_KEY = "triage-access-token";
+const REFRESH_TOKEN_KEY = "triage-refresh-token";
 
-export function getAccessToken() {
-  return localStorage.getItem(TOKEN_KEY);
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
-export function setAccessToken(token: string) {
-  localStorage.setItem(TOKEN_KEY, token);
+export function setAccessToken(token: string): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
 }
 
-export function clearAccessToken() {
-  localStorage.removeItem(TOKEN_KEY);
+export function clearAccessToken(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setRefreshToken(token: string): void {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+export function clearRefreshToken(): void {
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+export function setTokens(tokens: { access_token: string; refresh_token: string }): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access_token);
+  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh_token);
+}
+
+export function clearTokens(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
 export class ApiError extends Error {
@@ -54,7 +78,44 @@ function url(path: string) {
   return `${API_BASE_URL}${path}`;
 }
 
-async function request<T>(path: string, init: RequestInit = {}, signal?: AbortSignal): Promise<T> {
+let refreshPromise: Promise<string | null> | null = null;
+
+async function performTokenRefresh(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return null;
+  }
+  try {
+    const response = await fetch(url("/auth/refresh"), {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!response.ok) {
+      clearTokens();
+      return null;
+    }
+    const data = (await response.json()) as TokenRefreshResponse;
+    setTokens({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+    });
+    return data.access_token;
+  } catch {
+    clearTokens();
+    return null;
+  }
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  signal?: AbortSignal,
+  isRetry = false,
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(url(path), {
@@ -71,12 +132,32 @@ async function request<T>(path: string, init: RequestInit = {}, signal?: AbortSi
     throw new NetworkError(error instanceof Error ? error.message : undefined);
   }
 
-  const payload = await response.json().catch(() => undefined);
-  if (!response.ok) {
-    if (response.status === 401) {
-      clearAccessToken();
+  if (response.status === 401) {
+    if (path === "/auth/login" || path === "/auth/refresh" || isRetry) {
+      clearTokens();
+      if (path !== "/auth/login") {
+        window.dispatchEvent(new Event("auth:expired"));
+      }
+    } else {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        if (!refreshPromise) {
+          refreshPromise = performTokenRefresh().finally(() => {
+            refreshPromise = null;
+          });
+        }
+        const refreshedToken = await refreshPromise;
+        if (refreshedToken) {
+          return request<T>(path, init, signal, true);
+        }
+      }
+      clearTokens();
       window.dispatchEvent(new Event("auth:expired"));
     }
+  }
+
+  const payload = await response.json().catch(() => undefined);
+  if (!response.ok) {
     const rawDetail =
       typeof payload === "object" && payload !== null && "detail" in payload
         ? (payload as ApiErrorPayload).detail
@@ -94,6 +175,11 @@ export const apiClient = {
     request<LoginResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
+    }),
+  refreshToken: (refreshToken: string) =>
+    request<TokenRefreshResponse>("/auth/refresh", {
+      method: "POST",
+      body: JSON.stringify({ refresh_token: refreshToken }),
     }),
   me: (signal?: AbortSignal) => request<PrincipalResponse>("/auth/me", {}, signal),
   logout: () => request<void>("/auth/logout", { method: "POST" }),

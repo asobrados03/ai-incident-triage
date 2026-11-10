@@ -20,7 +20,8 @@ class Settings(BaseSettings):
     ollama_timeout_seconds: float = 180.0
     auth_users: SecretStr = SecretStr("")
     jwt_secret: SecretStr = SecretStr("")
-    jwt_expiration_minutes: int = 60
+    jwt_expiration_minutes: int = 15
+    refresh_token_expiration_days: int = 7
     cors_origins: str = "http://localhost:5173"
     retention_days: int = 90
     audit_retention_days: int = 365
@@ -55,6 +56,8 @@ def validate_runtime_settings(settings: Settings) -> None:
         raise ValueError("AUDIT_RETENTION_DAYS must be greater than zero")
     if settings.jwt_expiration_minutes <= 0:
         raise ValueError("JWT_EXPIRATION_MINUTES must be greater than zero")
+    if settings.refresh_token_expiration_days <= 0:
+        raise ValueError("REFRESH_TOKEN_EXPIRATION_DAYS must be greater than zero")
     if settings.auth_users.get_secret_value().strip() and len(
         settings.jwt_secret.get_secret_value(),
     ) < 32:

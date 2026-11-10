@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { ApiError, apiClient, clearAccessToken, setAccessToken } from "@/api/client";
+import { ApiError, apiClient, clearTokens, setTokens } from "@/api/client";
 import type { PrincipalResponse } from "@/api/types";
 import { AuthContext, type AuthContextValue, type AuthStatus } from "@/auth-context";
 
@@ -19,13 +19,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (current.authenticated) {
           setStatus("authenticated");
         } else {
-          clearAccessToken();
+          clearTokens();
           setStatus("anonymous");
         }
       } catch (error) {
         if (cancelled) return;
         if (error instanceof ApiError && error.status === 401) {
-          clearAccessToken();
+          clearTokens();
         }
         setPrincipal(null);
         setStatus("unauthenticated");
@@ -48,7 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (username: string, password: string) => {
     const response = await apiClient.login(username, password);
-    setAccessToken(response.access_token);
+    setTokens({
+      access_token: response.access_token,
+      refresh_token: response.refresh_token,
+    });
     setPrincipal({
       name: response.user.username,
       role: response.user.role,
@@ -64,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // El cierre de sesión local no debe depender de la disponibilidad del backend.
     } finally {
-      clearAccessToken();
+      clearTokens();
       setPrincipal(null);
       setStatus("unauthenticated");
     }

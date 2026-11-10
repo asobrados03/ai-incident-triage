@@ -2,6 +2,7 @@ from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy.orm import Session
 
 from backend.analyzers.core import (
     AnalyzerConfigurationError,
@@ -20,11 +21,14 @@ from backend.auth import (
     Principal,
     Role,
     create_access_token,
+    create_refresh_token,
     get_principal,
     jwt_secret_configured,
     require_role,
+    verify_refresh_token,
 )
 from backend.infrastructure.config import Settings, get_settings
+from backend.infrastructure.database import get_db_session
 from backend.infrastructure.repositories import AuditRepository
 from backend.infrastructure.repositories import IncidentRepository
 from backend.domain.models import AnalysisConfidence, IncidentStatus
@@ -36,9 +40,11 @@ from backend.schemas import (
     LoginRequest,
     LoginResponse,
     PrincipalResponse,
+    RefreshTokenRequest,
     RetentionRunRequest,
     RetentionRunResponse,
     ReviewMetricsResponse,
+    TokenRefreshResponse,
     TriageReviewRequest,
     UserCreate,
     UserListPage,
@@ -85,8 +91,50 @@ def login(
             runtime_settings,
             result.token_version,
         ),
+        refresh_token=create_refresh_token(
+            result.principal,
+            runtime_settings,
+            result.token_version,
+        ),
         expires_in=runtime_settings.jwt_expiration_minutes * 60,
+        refresh_expires_in=runtime_settings.refresh_token_expiration_days * 86400,
         user=result.user,
+    )
+
+
+@router.post("/auth/refresh", response_model=TokenRefreshResponse)
+def refresh_tokens(
+    payload: RefreshTokenRequest,
+    runtime_settings: Settings = Depends(get_settings),
+    session: Session = Depends(get_db_session),
+) -> TokenRefreshResponse:
+    if not jwt_secret_configured(runtime_settings):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="JWT_SECRET must be configured before issuing tokens",
+        )
+    from backend.infrastructure.repositories import UserRepository
+
+    user_repository = UserRepository(session)
+    user = verify_refresh_token(
+        payload.refresh_token,
+        runtime_settings,
+        user_repository,
+    )
+    principal = Principal(name=user.username, role=Role(user.role))
+    return TokenRefreshResponse(
+        access_token=create_access_token(
+            principal,
+            runtime_settings,
+            user.token_version,
+        ),
+        refresh_token=create_refresh_token(
+            principal,
+            runtime_settings,
+            user.token_version,
+        ),
+        expires_in=runtime_settings.jwt_expiration_minutes * 60,
+        refresh_expires_in=runtime_settings.refresh_token_expiration_days * 86400,
     )
 
 

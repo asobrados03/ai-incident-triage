@@ -146,6 +146,30 @@ def create_access_token(
             "sub": principal.name,
             "role": principal.role.value,
             "ver": token_version,
+            "typ": "access",
+            "iat": int(issued_at.timestamp()),
+            "exp": expires_at,
+        },
+        secret,
+        algorithm="HS256",
+    )
+
+
+def create_refresh_token(
+    principal: Principal,
+    settings: Settings,
+    token_version: int = 0,
+) -> str:
+    secret = _raw_secret(settings.jwt_secret)
+    if len(secret) < 32:
+        raise ValueError("JWT_SECRET must be at least 32 characters")
+    issued_at = datetime.now(timezone.utc)
+    expires_at = issued_at + timedelta(days=settings.refresh_token_expiration_days)
+    return jwt.encode(
+        {
+            "sub": principal.name,
+            "ver": token_version,
+            "typ": "refresh",
             "iat": int(issued_at.timestamp()),
             "exp": expires_at,
         },
@@ -163,6 +187,31 @@ def _unauthorized() -> HTTPException:
         detail="Missing or invalid bearer token",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+
+def verify_refresh_token(
+    token: str,
+    settings: Settings,
+    user_repository,
+):
+    try:
+        payload = jwt.decode(
+            token,
+            _raw_secret(settings.jwt_secret),
+            algorithms=["HS256"],
+        )
+    except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as error:
+        raise _unauthorized() from error
+    if payload.get("typ") != "refresh":
+        raise _unauthorized()
+    user = user_repository.get_by_username(str(payload.get("sub", "")))
+    if (
+        user is None
+        or not user.active
+        or int(payload.get("ver", -1)) != user.token_version
+    ):
+        raise _unauthorized()
+    return user
 
 
 def get_principal(
@@ -185,6 +234,8 @@ def get_principal(
             _raw_secret(settings.jwt_secret),
             algorithms=["HS256"],
         )
+        if payload.get("typ") == "refresh":
+            raise _unauthorized()
         user = user_repository.get_by_username(str(payload["sub"]))
     except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as error:
         raise _unauthorized() from error

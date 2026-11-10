@@ -6,6 +6,7 @@ def test_openapi_exposes_backend_frontend_contract() -> None:
 
     assert {
         "/auth/login",
+        "/auth/refresh",
         "/auth/me",
         "/health",
         "/incidents",

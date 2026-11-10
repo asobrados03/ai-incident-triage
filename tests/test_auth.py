@@ -6,9 +6,11 @@ from backend.auth import (
     Principal,
     Role,
     create_access_token,
+    create_refresh_token,
     hash_password,
     parse_auth_users,
     verify_password,
+    verify_refresh_token,
 )
 from backend.infrastructure.config import (
     Settings,
@@ -85,6 +87,7 @@ def test_jwt_token_contains_versioned_principal() -> None:
         auth_users=AUTH_USERS,
         jwt_secret=JWT_SECRET,
         jwt_expiration_minutes=15,
+        refresh_token_expiration_days=7,
     )
     token = create_access_token(
         Principal(name="reader", role=Role.READER),
@@ -96,13 +99,31 @@ def test_jwt_token_contains_versioned_principal() -> None:
     assert payload["sub"] == "reader"
     assert payload["role"] == "reader"
     assert payload["ver"] == 3
+    assert payload["typ"] == "access"
     assert "iat" in payload
     assert payload["exp"] > payload["iat"]
+
+    refresh_token = create_refresh_token(
+        Principal(name="reader", role=Role.READER),
+        settings,
+        token_version=3,
+    )
+    refresh_payload = jwt.decode(refresh_token, JWT_SECRET, algorithms=["HS256"])
+    assert refresh_payload["sub"] == "reader"
+    assert refresh_payload["ver"] == 3
+    assert refresh_payload["typ"] == "refresh"
+    assert "iat" in refresh_payload
+    assert refresh_payload["exp"] > payload["exp"]
 
 
 def test_token_creation_requires_a_long_secret() -> None:
     with pytest.raises(ValueError):
         create_access_token(
+            Principal(name="reader", role=Role.READER),
+            Settings(jwt_secret="too-short"),
+        )
+    with pytest.raises(ValueError):
+        create_refresh_token(
             Principal(name="reader", role=Role.READER),
             Settings(jwt_secret="too-short"),
         )
@@ -142,6 +163,14 @@ def test_jwt_configuration_requires_a_long_secret() -> None:
     with pytest.raises(ValueError):
         validate_runtime_settings(
             Settings(auth_users=AUTH_USERS, jwt_secret="too-short"),
+        )
+    with pytest.raises(ValueError):
+        validate_runtime_settings(
+            Settings(auth_users=AUTH_USERS, jwt_secret=JWT_SECRET, jwt_expiration_minutes=0),
+        )
+    with pytest.raises(ValueError):
+        validate_runtime_settings(
+            Settings(auth_users=AUTH_USERS, jwt_secret=JWT_SECRET, refresh_token_expiration_days=0),
         )
 
 

@@ -141,7 +141,8 @@ validar el Dockerfile.
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Timeout finito del adaptador. |
 | `AUTH_USERS` | vacío | Semilla inicial `name:role:password,...` para la tabla `users`. Solo crea usuarios que falten; después la BD manda. Vacío no siembra nada. |
 | `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres para emitir y validar tokens. |
-| `JWT_EXPIRATION_MINUTES` | `60` | Duración de los tokens JWT. |
+| `JWT_EXPIRATION_MINUTES` | `15` | Duración del access token (por defecto 15 minutos). |
+| `REFRESH_TOKEN_EXPIRATION_DAYS` | `7` | Duración del refresh token de larga duración (por defecto 7 días). |
 | `CORS_ORIGINS` | `http://localhost:5173` | Orígenes HTTP(S) separados por comas; `*` no está permitido. |
 | `RETENTION_DAYS` | `90` | Antigüedad mínima de incidencias antes de poder purgarlas. |
 | `AUDIT_RETENTION_DAYS` | `365` | Antigüedad mínima de registros de auditoría antes de purgarlos. |
@@ -170,16 +171,18 @@ $env:JWT_SECRET = "cambia-este-secreto-por-uno-de-al-menos-32-caracteres"
 uvicorn backend.main:app --reload
 ```
 
-- `POST /auth/login` recibe `{"username":"soporte","password":"..."}` y devuelve un token Bearer más el usuario.
+- `POST /auth/login` recibe `{"username":"soporte","password":"..."}` y devuelve el par de tokens (`access_token` de 15 min y `refresh_token` de 7 días con rotación) más el usuario.
+- `POST /auth/refresh` recibe `{"refresh_token":"..."}`, valida la sesión en BD y emite un nuevo par de tokens (`access_token` renovado y `refresh_token` rotado).
 - `GET /auth/me` devuelve `name`, `role` y `authenticated`. La UI lo usa para decidir qué acciones mostrar.
-- `POST /auth/logout` revoca el JWT del usuario autenticado y responde `204`. La UI lo llama al pulsar **Salir** y,
-  pase lo que pase, borra después el token local.
+- `POST /auth/logout` revoca los tokens del usuario autenticado y responde `204`. La UI lo llama al pulsar **Salir** y,
+  pase lo que pase, borra después los tokens locales.
 - Las contraseñas se guardan con **Argon2id** y salt único; nunca se devuelven, registran ni auditan.
-- El JWT incluye `sub`, `role`, `ver`, `iat` y `exp`. `ver` es la versión de token del usuario.
-- Cambiar la contraseña incrementa `token_version`: los tokens anteriores dejan de valer.
-- El logout también incrementa `token_version`, de modo que invalida **todos** los JWT abiertos de ese usuario, no solo
-  el token usado para cerrar sesión. Es una decisión consciente para que un token robado no siga vivo hasta su `exp`.
-- Desactivar un usuario o cambiar su rol también se refleja de inmediato: cada petición revalida contra la BD.
+- El JWT de acceso incluye `sub`, `role`, `ver`, `typ: "access"`, `iat` y `exp`. `ver` es la versión de token del usuario.
+- El refresh token incluye `sub`, `ver`, `typ: "refresh"`, `iat` y `exp` (no se puede usar directamente como token de autorización Bearer en endpoints de negocio).
+- Cambiar la contraseña incrementa `token_version`: tanto el access token como el refresh token dejan de valer de inmediato.
+- El logout también incrementa `token_version`, de modo que invalida **todos** los JWT y refresh tokens abiertos de ese usuario, no solo el token usado para cerrar sesión. Es una decisión consciente para que un token robado no siga vivo hasta su `exp`.
+- Desactivar un usuario o cambiar su rol también se refleja de inmediato: cada petición y cada refresco revalida contra la BD.
+- La UI implementa interceptores transparentes: cuando el `access_token` expira durante el uso de la aplicación, solicita automáticamente un nuevo par mediante `POST /auth/refresh` sin interrumpir al usuario; si el `refresh_token` también expiró o fue revocado, limpia el almacenamiento y redirige a `/login`.
 - Los roles son jerárquicos: `reader < writer < admin`.
 - Sin token o con token inválido la API devuelve `401`; con rol insuficiente, `403`.
 - `GET /health` permanece público para sondas de disponibilidad.

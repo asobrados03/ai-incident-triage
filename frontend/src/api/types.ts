@@ -123,9 +123,19 @@ export interface ReviewMetricsResponse {
 
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   token_type: "bearer";
   expires_in: number;
+  refresh_expires_in: number;
   user: UserResponse;
+}
+
+export interface TokenRefreshResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: "bearer";
+  expires_in: number;
+  refresh_expires_in: number;
 }
 
 export interface PrincipalResponse {
