@@ -163,6 +163,11 @@ un único equipo, sin intervalos de confianza y con un prompt mínimo sin rúbri
 es una estimación neutral: sus reglas se ajustaron con otros conjuntos. Los resultados describen este adaptador y este
 conjunto, no el techo del modelo.
 
+La petición manual usada para probar directamente `/api/chat` con `qwen3.5:4b` está en
+[`examples/ollama-chat-request.json`](examples/ollama-chat-request.json). Es un ejemplo histórico de prueba, no el
+payload que envía el backend: la aplicación usa el esquema completo de `TriageResult`, `num_predict: 512` y un mensaje
+de sistema, construidos en `backend/analyzers/core.py`.
+
 ## Benchmark y evaluación comparativa de LLMs locales
 
 Se evaluaron múltiples modelos LLM locales ejecutados sobre Ollama con inferencia en CPU en el hardware de desarrollo
