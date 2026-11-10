@@ -21,27 +21,11 @@ from backend.domain.models import (
 )
 from backend.schemas import IncidentCreate, TriageResult
 
-DEFAULT_DATASET = (
-    Path(__file__).resolve().parents[2] / "eval" / "data" / "incidents.json"
-)
-DEFAULT_HOLDOUT_DATASET = (
-    Path(__file__).resolve().parents[2]
-    / "eval"
-    / "data"
-    / "incidents-holdout.json"
-)
-DEFAULT_HOLDOUT_V2_DATASET = (
-    Path(__file__).resolve().parents[2]
-    / "eval"
-    / "data"
-    / "incidents-holdout-v2.json"
-)
-DEFAULT_REGRESSION_DATASET = (
-    Path(__file__).resolve().parents[2]
-    / "eval"
-    / "data"
-    / "incidents-regression.json"
-)
+EVALUATION_DATA_DIR = Path(__file__).resolve().parent / "data"
+DEFAULT_DATASET = EVALUATION_DATA_DIR / "incidents.json"
+DEFAULT_HOLDOUT_DATASET = EVALUATION_DATA_DIR / "incidents-holdout.json"
+DEFAULT_HOLDOUT_V2_DATASET = EVALUATION_DATA_DIR / "incidents-holdout-v2.json"
+DEFAULT_REGRESSION_DATASET = EVALUATION_DATA_DIR / "incidents-regression.json"
 
 _ENUM_FIELDS: dict[str, tuple[str, ...]] = {
     "category": tuple(category.value for category in IncidentCategory),

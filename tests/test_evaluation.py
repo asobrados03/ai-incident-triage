@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 import sys
 
-from backend import evaluation as evaluation_module
+import evaluation as evaluation_module
 from backend.analyzers.core import FakeAnalyzer
-from backend.evaluation import (
+from evaluation import (
     DEFAULT_HOLDOUT_DATASET,
     DEFAULT_HOLDOUT_V2_DATASET,
     DEFAULT_REGRESSION_DATASET,

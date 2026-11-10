@@ -1,7 +1,7 @@
 """Offline analyzer evaluation."""
 
-from backend.evaluation import runner as _runner
-from backend.evaluation.runner import *  # noqa: F403
+from evaluation import runner as _runner
+from evaluation.runner import *  # noqa: F403
 
 
 def main() -> None:

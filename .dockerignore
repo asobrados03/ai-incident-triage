@@ -9,5 +9,6 @@ __pycache__
 incidents.db
 incidents.db-*
 tests
+evaluation
 req.json
 datos de prueba manual

@@ -7,7 +7,6 @@ WORKDIR /app
 
 COPY pyproject.toml README.md ./
 COPY backend ./backend
-COPY eval ./eval
 
 RUN python -m pip install --no-cache-dir .
 RUN mkdir -p /data

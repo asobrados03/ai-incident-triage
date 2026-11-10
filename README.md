@@ -64,7 +64,7 @@ Capas:
 - `backend/domain/models.py`: enums y estados del dominio.
 - `backend/analyzers/core.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
 - `backend/schemas.py`: contratos Pydantic públicos.
-- `backend/evaluation/runner.py`: evaluación offline independiente de FastAPI.
+- `evaluation/runner.py`: evaluación offline independiente de FastAPI.
 
 La aplicación usa estas rutas por capas directamente; no se mantienen módulos fachada ni aliases de compatibilidad.
 
@@ -436,23 +436,23 @@ sin fallback silencioso ni trazas en la respuesta. Los tests nunca llaman a Olla
 
 Hay varios conjuntos con propósitos distintos:
 
-- `eval/data/incidents.json`: 28 casos de desarrollo, usados para ajustar las reglas.
-- `eval/data/incidents-holdout.json`: 12 casos del primer holdout. Se usó para detectar el fallo de credenciales, así
+- `evaluation/data/incidents.json`: 28 casos de desarrollo, usados para ajustar las reglas.
+- `evaluation/data/incidents-holdout.json`: 12 casos del primer holdout. Se usó para detectar el fallo de credenciales, así
   que después de corregirlo ya no es una referencia ciega.
-- `eval/data/incidents-regression.json`: 12 casos que encontraron falsos positivos durante esta iteración (“documento”
+- `evaluation/data/incidents-regression.json`: 12 casos que encontraron falsos positivos durante esta iteración (“documento”
   interpretado como documentación, guías que mencionan configuración). Se conserva como regresión.
-- `eval/data/incidents-holdout-v2.json`: 12 casos escritos después de los cambios y ejecutados una sola vez. Es la
+- `evaluation/data/incidents-holdout-v2.json`: 12 casos escritos después de los cambios y ejecutados una sola vez. Es la
   referencia más honesta de generalización de esta iteración.
 
 ```powershell
-python -m backend.evaluation
-python -m backend.evaluation --dataset eval/data/incidents-holdout-v2.json
-python -m backend.evaluation --dataset eval/data/incidents-regression.json
-python -m backend.evaluation --dataset eval/data/incidents-holdout.json
-python -m backend.evaluation --verbose
-python -m backend.evaluation --summary
-python -m backend.evaluation --summary --dataset eval/data/incidents-holdout-v2.json
-python -m backend.evaluation --backend fake --compare-with ollama --summary
+python -m evaluation
+python -m evaluation --dataset evaluation/data/incidents-holdout-v2.json
+python -m evaluation --dataset evaluation/data/incidents-regression.json
+python -m evaluation --dataset evaluation/data/incidents-holdout.json
+python -m evaluation --verbose
+python -m evaluation --summary
+python -m evaluation --summary --dataset evaluation/data/incidents-holdout-v2.json
+python -m evaluation --backend fake --compare-with ollama --summary
 ```
 
 `--verbose` imprime en `stderr` el resultado por caso y los campos que no coinciden. `--summary` imprime en `stderr` un
@@ -489,7 +489,7 @@ y deltas de accuracy, macro-F1, latencia y errores. En este modo el JSON cambia 
 la forma reproducible de responder si Ollama mejora al baseline:
 
 ```powershell
-python -m backend.evaluation --backend fake --compare-with ollama --summary
+python -m evaluation --backend fake --compare-with ollama --summary
 ```
 
 Ese comando sí necesita Ollama levantado; los tests siguen sin llamar al LLM.
@@ -508,19 +508,19 @@ solo fallo mueve la accuracy unos 8 puntos, así que los resultados deben leerse
 baseline, no como una estimación precisa. Para Ollama, con el runtime ya disponible:
 
 ```powershell
-python -m backend.evaluation --backend ollama
+python -m evaluation --backend ollama
 ```
 
 ### Comparación real `fake` frente a `ollama`
 
-Ejecutada el 30 de octubre de 2026 sobre `eval/data/incidents-holdout-v2.json` (12 casos), con:
+Ejecutada el 30 de octubre de 2026 sobre `evaluation/data/incidents-holdout-v2.json` (12 casos), con:
 
 - Modelo `qwen3.5:4b` (Q4_K_M, 4.2B) servido por Ollama en local.
 - Equipo de desarrollo: Intel Core i7-1255U, 32 GB de RAM, gráficos Intel Iris Xe. La latencia depende del hardware.
 - Comando:
-  `python -m backend.evaluation --backend fake --compare-with ollama --dataset eval/data/incidents-holdout-v2.json --summary`
-- Artefactos: `eval/results/ollama-vs-fake-holdout-v2.json` (detalle por caso) y
-  `eval/results/ollama-vs-fake-holdout-v2.txt` (resumen).
+  `python -m evaluation --backend fake --compare-with ollama --dataset evaluation/data/incidents-holdout-v2.json --summary`
+- Artefactos: `evaluation/results/ollama-vs-fake-holdout-v2.json` (detalle por caso) y
+  `evaluation/results/ollama-vs-fake-holdout-v2.txt` (resumen).
 
 | Backend | Category | Severity | Priority | Missing info | Confidence | Macro-F1 cat / sev / prio | p50 | p95 | Errores | Casos completos |
 |---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
@@ -581,10 +581,10 @@ Para regenerar los artefactos:
 ```powershell
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
 $OutputEncoding = [Text.UTF8Encoding]::new()
-python -m backend.evaluation --backend fake --compare-with ollama `
-  --dataset eval/data/incidents-holdout-v2.json --summary `
-  2> eval/results/ollama-vs-fake-holdout-v2.txt `
-  > eval/results/ollama-vs-fake-holdout-v2.json
+python -m evaluation --backend fake --compare-with ollama `
+  --dataset evaluation/data/incidents-holdout-v2.json --summary `
+  2> evaluation/results/ollama-vs-fake-holdout-v2.txt `
+  > evaluation/results/ollama-vs-fake-holdout-v2.json
 ```
 
 ### Benchmark y evaluación comparativa de LLMs locales
