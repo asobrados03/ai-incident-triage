@@ -9,7 +9,7 @@ from backend.analyzers.core import (
     AnalyzerTimeoutError,
     OllamaAnalyzer,
 )
-from backend.schemas import IncidentCreate
+from backend.api.schemas import IncidentCreate
 
 
 def incident() -> IncidentCreate:

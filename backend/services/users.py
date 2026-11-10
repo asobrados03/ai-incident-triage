@@ -11,7 +11,7 @@ from backend.auth import (
     verify_password,
 )
 from backend.infrastructure.repositories import AuditRepository, UserRepository
-from backend.schemas import UserCreate, UserResponse, UserUpdate
+from backend.api.schemas import UserCreate, UserResponse, UserUpdate
 
 
 class UserNotFoundError(Exception):

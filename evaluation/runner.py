@@ -19,7 +19,7 @@ from backend.domain.models import (
     IncidentPriority,
     IncidentSeverity,
 )
-from backend.schemas import IncidentCreate, TriageResult
+from backend.api.schemas import IncidentCreate, TriageResult
 
 EVALUATION_DATA_DIR = Path(__file__).resolve().parent / "data"
 DEFAULT_DATASET = EVALUATION_DATA_DIR / "incidents.json"

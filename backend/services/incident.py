@@ -7,7 +7,7 @@ from backend.analyzers.core import IncidentAnalyzer
 from backend.auth import Principal
 from backend.domain.models import IncidentStatus
 from backend.infrastructure.repositories import AuditRepository, IncidentRepository
-from backend.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest
+from backend.api.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest
 
 logger = logging.getLogger(__name__)
 

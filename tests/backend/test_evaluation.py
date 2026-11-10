@@ -18,7 +18,7 @@ from evaluation import (
     print_outcomes,
     print_summary,
 )
-from backend.schemas import IncidentCreate, TriageResult
+from backend.api.schemas import IncidentCreate, TriageResult
 
 
 def _triage(

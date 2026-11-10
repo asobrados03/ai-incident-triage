@@ -21,7 +21,7 @@ from backend.infrastructure.orm_models import (
     TriageReviewORM,
     UserORM,
 )
-from backend.schemas import (
+from backend.api.schemas import (
     AuditLogResponse,
     CorrectionByConfidence,
     FieldAccuracy,

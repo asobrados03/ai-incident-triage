@@ -11,7 +11,7 @@ from backend.auth import (
 )
 from backend.infrastructure.database import Base, apply_lightweight_migrations
 from backend.infrastructure.repositories import AuditRepository, UserRepository
-from backend.schemas import UserCreate, UserUpdate
+from backend.api.schemas import UserCreate, UserUpdate
 from backend.services.users import UserConflictError, UserService
 
 

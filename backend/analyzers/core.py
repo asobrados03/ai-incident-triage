@@ -9,7 +9,7 @@ import httpx
 
 from backend.infrastructure.config import get_settings
 from backend.domain.models import AnalysisConfidence
-from backend.schemas import IncidentCreate, TriageResult
+from backend.api.schemas import IncidentCreate, TriageResult
 
 
 class IncidentAnalyzer(Protocol):

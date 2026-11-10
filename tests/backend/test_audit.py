@@ -9,7 +9,7 @@ from backend.auth import Principal, Role
 from backend.infrastructure.database import Base
 from backend.domain.models import IncidentSeverity
 from backend.infrastructure.repositories import AuditRepository, IncidentRepository
-from backend.schemas import IncidentCreate, TriageReviewRequest
+from backend.api.schemas import IncidentCreate, TriageReviewRequest
 from backend.services.incident import IncidentService
 
 

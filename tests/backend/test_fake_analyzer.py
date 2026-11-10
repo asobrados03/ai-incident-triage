@@ -1,5 +1,5 @@
 from backend.analyzers.core import FakeAnalyzer
-from backend.schemas import IncidentCreate, TriageResult
+from backend.api.schemas import IncidentCreate, TriageResult
 
 
 def analyze(**overrides) -> TriageResult:

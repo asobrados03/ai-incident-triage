@@ -32,7 +32,7 @@ from backend.infrastructure.database import get_db_session
 from backend.infrastructure.repositories import AuditRepository
 from backend.infrastructure.repositories import IncidentRepository
 from backend.domain.models import AnalysisConfidence, IncidentStatus
-from backend.schemas import (
+from backend.api.schemas import (
     AuditLogPage,
     IncidentCreate,
     IncidentListPage,
