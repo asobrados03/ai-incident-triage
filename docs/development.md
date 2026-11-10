@@ -85,7 +85,7 @@ comportamiento de autenticación, roles y revocación se detalla en [architectur
 
 ## Tests y validaciones
 
-La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **144 tests backend** y **37 tests
+La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **148 tests backend** y **37 tests
 frontend** (7 archivos).
 
 ```powershell
@@ -170,7 +170,7 @@ evaluation/         runner.py, data/ y results/ para la evaluación offline
 tests/backend/      Suite de pytest del backend
 scripts/            Utilidades, incluida demo.ps1
 docs/               Esta documentación
-Dockerfile          Imagen de la API
+Dockerfile          Imagen multi-stage de API + frontend
 pyproject.toml      Metadatos, dependencias y configuración de pytest
 README.md           Presentación y puesta en marcha rápida
 ```

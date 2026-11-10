@@ -44,7 +44,7 @@ npm test -- --run
 npm run build
 ```
 
-Estado actual: **144 tests backend** y **37 tests frontend** (7 archivos). La suite no realiza llamadas a Ollama.
+Estado actual: **148 tests backend** y **37 tests frontend** (7 archivos). La suite no realiza llamadas a Ollama.
 
 ## Documentación
 
