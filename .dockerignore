@@ -12,3 +12,6 @@ tests
 evaluation
 req.json
 datos de prueba manual
+frontend/node_modules
+frontend/dist
+frontend/coverage

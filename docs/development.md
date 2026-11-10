@@ -126,15 +126,28 @@ autenticación deshabilitada (`AUTH_USERS` vacío) el script funciona sin creden
 
 ## Docker
 
+La imagen es multi-stage: un stage de `node:24-alpine` compila el frontend con Vite y el stage final de
+`python:3.12-slim` sirve la API y el SPA desde el mismo origen. `VITE_API_URL` se fija en build-time con `/` para que
+el cliente use rutas relativas.
+
 ```powershell
 docker build -t triaje-api .
 docker run --rm -p 8000:8000 -v "${PWD}/data:/data" `
   -e DATABASE_URL=sqlite:////data/incidents.db triaje-api
 ```
 
-La imagen no incluye `incidents.db`, tests, `.venv`, artefactos locales ni secretos. El contenedor no inicia Ollama:
-debe ejecutarse aparte. Si activas la autenticación, inyecta `AUTH_USERS` y `JWT_SECRET` con `--env-file` o un gestor
-de secretos; no la incluyas en la imagen.
+La interfaz queda en `http://127.0.0.1:8000/`, la documentación OpenAPI sigue en `/docs` y el health check en
+`/health`. FastAPI sirve `frontend/dist` y devuelve `index.html` en las rutas del SPA (`/metrics`, `/incidents/:id`,
+etc.) para que funcionen al refrescar o entrar directamente.
+
+La imagen no incluye `incidents.db`, tests, `evaluation/`, `.venv`, artefactos locales ni secretos. El contenedor no
+inicia Ollama: debe ejecutarse aparte. Si lo usas desde el contenedor, ajusta `OLLAMA_BASE_URL` a una dirección
+alcanzable (por ejemplo `http://host.docker.internal:11434`; en Linux añade
+`--add-host=host.docker.internal:host-gateway`). Si activas la autenticación, inyecta `AUTH_USERS` y `JWT_SECRET` con
+`--env-file` o un gestor de secretos; no la incluyas en la imagen.
+
+Si necesitas compilar el frontend contra otro origen de API, usa
+`docker build --build-arg VITE_API_URL=https://api.example.com -t triaje-api .` y configura `CORS_ORIGINS` en la API.
 
 PostgreSQL no se incorpora todavía: SQLite cubre el MVP local y evita añadir operación, driver y migraciones antes de
 necesitar despliegue multiinstancia.
@@ -143,8 +156,8 @@ necesitar despliegue multiinstancia.
 
 GitHub Actions en `.github/workflows/ci.yml` separa dos jobs:
 
-- **Backend:** instala el proyecto con `python -m pip install -e ".[test]"`, ejecuta `python -m pytest -q` y valida el
-  Dockerfile con `docker build --check .`.
+- **Backend:** instala el proyecto con `python -m pip install -e ".[test]"`, ejecuta `python -m pytest -q`, construye
+  la imagen Docker y hace un smoke test del contenedor: `/health`, `/` y `/metrics` (fallback del SPA).
 - **Frontend:** instala con `npm ci`, ejecuta `npm run lint`, `npm run format:check`, `npm test -- --run` y
   `npm run build`.
 

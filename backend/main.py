@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.dependencies import get_incident_service
+from backend.api.frontend import mount_frontend
 from backend.api.routes import router
 from backend.security.auth import parse_auth_users
 from backend.infrastructure.config import (
@@ -58,5 +59,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(router)
+mount_frontend(app)
 
 __all__ = ["app", "get_incident_service"]

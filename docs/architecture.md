@@ -379,6 +379,21 @@ uvicorn backend.main:app --reload
 respuesta contra `TriageResult`. Proveedor no disponible o respuesta inválida producen `502`; timeout produce `504`,
 sin fallback silencioso ni trazas en la respuesta. Los tests nunca llaman a Ollama.
 
+## Despliegue
+
+El modelo de despliegue es una única imagen Docker:
+
+- Un stage de Node compila el frontend con Vite (`frontend/dist`).
+- El stage final de Python instala el backend y copia ese build.
+- Uvicorn expone la API y los estáticos en el mismo origen; `/docs`, `/openapi.json` y las rutas de API tienen
+  prioridad sobre el fallback del SPA.
+- El fallback devuelve `index.html` para rutas como `/metrics` o `/incidents/{id}`, de modo que `BrowserRouter`
+  funcione al refrescar o entrar directamente.
+- SQLite se persiste en un volumen (`/data/incidents.db`).
+
+Al ser same-origin, el despliegue no necesita CORS. La imagen no incluye Ollama ni el archivo `incidents.db`. Los
+comandos de build, ejecución y variables están en [development.md](development.md#docker).
+
 ## Decisiones, costes y seguridad
 
 - **SQLite frente a PostgreSQL:** SQLite reduce fricción para el MVP; PostgreSQL será razonable cuando haya
