@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.dependencies import get_incident_service
 from backend.api.routes import router
-from backend.auth import parse_auth_users
+from backend.security.auth import parse_auth_users
 from backend.infrastructure.config import (
     get_cors_origins,
     get_settings,

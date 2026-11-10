@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.auth import Principal, Role
+from backend.security.auth import Principal, Role
 from backend.infrastructure.config import Settings, validate_runtime_settings
 from backend.infrastructure.database import Base
 from backend.infrastructure.orm_models import (

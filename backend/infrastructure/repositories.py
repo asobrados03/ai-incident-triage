@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.orm import Session
 
-from backend.auth import Principal, Role
+from backend.security.auth import Principal, Role
 from backend.domain.models import (
     AnalysisConfidence,
     IncidentCategory,

@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.auth import (
+from backend.security.auth import (
     BootstrapUser,
     Principal,
     Role,

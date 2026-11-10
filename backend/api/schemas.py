@@ -4,7 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from backend.auth import Role
+from backend.security.auth import Role
 from backend.domain.models import (
     AnalysisConfidence,
     IncidentCategory,

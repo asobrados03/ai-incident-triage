@@ -1,7 +1,7 @@
 import jwt
 import pytest
 
-from backend.auth import (
+from backend.security.auth import (
     BootstrapUser,
     Principal,
     Role,

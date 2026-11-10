@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
-from backend.auth import (
+from backend.security.auth import (
     BootstrapUser,
     Principal,
     Role,

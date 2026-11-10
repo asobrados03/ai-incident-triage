@@ -54,7 +54,7 @@ Capas:
 - `backend/main.py`: creación de la aplicación y ciclo de vida; las rutas y dependencias están en `backend/api/`.
 - `backend/api/routes.py`: controladores HTTP, validación mediante esquemas y traducción de errores a HTTP.
 - `backend/api/dependencies.py`: composición de servicios, repositorios y analizadores para FastAPI.
-- `backend/auth.py`: roles, Argon2id, emisión/validación de JWT y dependencias de autenticación/autorización.
+- `backend/security/auth.py`: roles, Argon2id, emisión/validación de JWT y dependencias de autenticación/autorización.
 - `backend/services/incident.py`: transiciones de estado y casos de uso de incidencias.
 - `backend/services/users.py`: bootstrap, login, CRUD de usuarios y guardas del último administrador.
 - `backend/services/retention.py`: caso de uso de retención y CLI `python -m backend.services.retention`.
@@ -63,7 +63,7 @@ Capas:
 - `backend/infrastructure/config.py` y `backend/infrastructure/database.py`: configuración, engine, sesiones, creación de tablas y migración aditiva ligera.
 - `backend/domain/models.py`: enums y estados del dominio.
 - `backend/analyzers/core.py`: protocolo `IncidentAnalyzer`, `FakeAnalyzer` y adaptador `OllamaAnalyzer`.
-- `backend/schemas.py`: contratos Pydantic públicos.
+- `backend/api/schemas.py`: contratos Pydantic públicos.
 - `evaluation/runner.py`: evaluación offline independiente de FastAPI.
 
 La aplicación usa estas rutas por capas directamente; no se mantienen módulos fachada ni aliases de compatibilidad.

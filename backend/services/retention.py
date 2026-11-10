@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timedelta, timezone
 import json
 
-from backend.auth import Principal, Role
+from backend.security.auth import Principal, Role
 from backend.infrastructure.config import get_settings, validate_runtime_settings
 from backend.infrastructure.database import SessionLocal, create_tables, engine
 from backend.infrastructure.repositories import AuditRepository, RetentionRepository

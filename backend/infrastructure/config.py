@@ -64,7 +64,7 @@ def validate_runtime_settings(settings: Settings) -> None:
         raise ValueError("JWT_SECRET must be at least 32 characters")
 
     # Import local para evitar un ciclo de imports entre config y auth.
-    from backend.auth import parse_auth_users
+    from backend.security.auth import parse_auth_users
 
     parse_auth_users(settings.auth_users)
     get_cors_origins(settings.cors_origins)

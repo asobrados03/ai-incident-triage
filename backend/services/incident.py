@@ -4,7 +4,7 @@ from time import perf_counter
 from uuid import UUID, uuid4
 
 from backend.analyzers.core import IncidentAnalyzer
-from backend.auth import Principal
+from backend.security.auth import Principal
 from backend.domain.models import IncidentStatus
 from backend.infrastructure.repositories import AuditRepository, IncidentRepository
 from backend.api.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest

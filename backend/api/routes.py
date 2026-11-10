@@ -17,7 +17,7 @@ from backend.api.dependencies import (
     get_retention_service,
     get_user_service,
 )
-from backend.auth import (
+from backend.security.auth import (
     Principal,
     Role,
     create_access_token,
