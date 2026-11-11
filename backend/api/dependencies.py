@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from backend.analyzers.core import (
     AnalyzerConfigurationError,
     FakeAnalyzer,
+    IncidentAnalyzer,
     OllamaAnalyzer,
 )
 from backend.infrastructure.config import Settings, get_settings
@@ -23,6 +24,7 @@ def get_incident_service(
     session: Session = Depends(get_db_session),
     runtime_settings: Settings = Depends(get_settings),
 ) -> IncidentService:
+    analyzer: IncidentAnalyzer
     if runtime_settings.analyzer_backend == "fake":
         analyzer = FakeAnalyzer()
     elif runtime_settings.analyzer_backend == "ollama":

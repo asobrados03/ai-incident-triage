@@ -8,7 +8,12 @@ from typing import Protocol
 import httpx
 
 from backend.api.schemas import IncidentCreate, TriageResult
-from backend.domain.models import AnalysisConfidence
+from backend.domain.models import (
+    AnalysisConfidence,
+    IncidentCategory,
+    IncidentPriority,
+    IncidentSeverity,
+)
 from backend.infrastructure.config import get_settings
 
 
@@ -214,12 +219,12 @@ class FakeAnalyzer:
         )
 
         return TriageResult(
-            category=category,
-            severity=severity,
-            priority=priority,
+            category=IncidentCategory(category),
+            severity=IncidentSeverity(severity),
+            priority=IncidentPriority(priority),
             summary=f"Análisis determinista de: {incident.title}",
-            affected_components=incident.components or [],
-            missing_information=missing_information,
+            affected_components=set(incident.components or []),
+            missing_information=set(missing_information),
             justification=self._justification(
                 category,
                 category_signals,
@@ -228,7 +233,7 @@ class FakeAnalyzer:
                 priority,
                 missing_information,
             ),
-            confidence=confidence,
+            confidence=AnalysisConfidence(confidence),
         )
 
     @staticmethod

@@ -1,9 +1,10 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import case, delete, func, select
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 
 from backend.api.schemas import (
@@ -198,6 +199,7 @@ class IncidentRepository:
             base_query = base_query.where(*filters)
             count_query = count_query.where(*filters)
 
+        ordering: tuple[Any, ...]
         if sort == "confidence":
             confidence_rank = case(
                 (TriageResultORM.confidence == AnalysisConfidence.LOW.value, 0),
@@ -442,8 +444,8 @@ class IncidentRepository:
             severity=IncidentSeverity(record.severity),
             priority=IncidentPriority(record.priority),
             summary=record.summary,
-            affected_components=record.affected_components,
-            missing_information=record.missing_information,
+            affected_components=set(record.affected_components),
+            missing_information=set(record.missing_information),
             justification=record.justification,
             confidence=AnalysisConfidence(record.confidence),
             created_at=record.created_at,
@@ -506,8 +508,8 @@ class IncidentRepository:
                 severity=IncidentSeverity(record.severity),
                 priority=IncidentPriority(record.priority),
                 summary=record.summary,
-                affected_components=record.affected_components,
-                missing_information=record.missing_information,
+                affected_components=set(record.affected_components),
+                missing_information=set(record.missing_information),
                 justification=record.justification,
                 confidence=AnalysisConfidence(record.confidence),
             ),
@@ -584,7 +586,7 @@ class AuditRepository:
             id=UUID(record.id),
             created_at=record.created_at,
             actor=record.actor,
-            role=record.role,
+            role=Role(record.role),
             action=record.action,
             resource_type=record.resource_type,
             resource_id=record.resource_id,
@@ -662,7 +664,10 @@ class RetentionRepository:
         return self._session.scalar(query) or 0
 
     def _delete(self, statement) -> int:
-        result = self._session.execute(
-            statement.execution_options(synchronize_session=False),
+        result = cast(
+            CursorResult[Any],
+            self._session.execute(
+                statement.execution_options(synchronize_session=False),
+            ),
         )
         return result.rowcount or 0

@@ -28,6 +28,10 @@ jobs:
         run: |
           python -m pip install --quiet "ruff==0.17.4"
           python -m ruff check backend tests evaluation
+      - name: Type-check backend
+        run: |
+          python -m pip install --quiet "mypy==2.4.1"
+          python -m mypy
       - name: Run tests
         run: python -m pytest -q
       - name: Build image
