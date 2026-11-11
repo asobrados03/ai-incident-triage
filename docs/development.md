@@ -120,7 +120,7 @@ frontend** (7 archivos).
 python -m pip install "ruff==0.17.4" "mypy==2.4.1"
 python -m ruff check backend tests evaluation
 python -m mypy
-python -m pytest -q
+python -m pytest -q --cov --cov-report=term-missing
 Set-Location frontend
 npm ci
 npm run lint
@@ -131,6 +131,8 @@ npm run build
 
 - `python -m ruff check backend tests evaluation` ejecuta el lint de Python (configuración en `pyproject.toml`).
 - `python -m mypy` comprueba los tipos de `backend` y `evaluation`; el resto de opciones también está en `pyproject.toml`.
+- `python -m pytest -q --cov --cov-report=term-missing` ejecuta la suite con cobertura de `backend` y `evaluation`. El
+  umbral mínimo es **90%** (`fail_under`) y la configuración vive en `pyproject.toml`.
 - `npm run lint` ejecuta ESLint y `tsc -b` (type-check).
 - `npm run format:check` comprueba el formato con Prettier.
 - `npm test -- --run` ejecuta Vitest en modo no interactivo.
@@ -196,8 +198,9 @@ necesitar despliegue multiinstancia.
 GitHub Actions en `.github/workflows/ci.yml` separa dos jobs:
 
 - **Backend:** instala las versiones fijadas de `requirements.lock` con `--require-hashes`, comprueba que el lock está
-  al día, ejecuta el lint con Ruff, el type-check con mypy y `python -m pytest -q`, construye la imagen Docker y hace un
-  smoke test del contenedor: `/health`, `/`, `/metrics` (fallback del SPA) y `401` en `/incidents` sin credenciales.
+  al día, ejecuta el lint con Ruff, el type-check con mypy y la suite con cobertura (`--cov`, umbral 90%), construye la
+  imagen Docker y hace un smoke test del contenedor: `/health`, `/`, `/metrics` (fallback del SPA) y `401` en
+  `/incidents` sin credenciales.
 - **Frontend:** instala con `npm ci`, ejecuta `npm run lint`, `npm run format:check`, `npm test -- --run` y
   `npm run build`.
 

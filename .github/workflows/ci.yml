@@ -33,7 +33,7 @@ jobs:
           python -m pip install --quiet "mypy==2.4.1"
           python -m mypy
       - name: Run tests
-        run: python -m pytest -q
+        run: python -m pytest -q --cov --cov-report=term-missing
       - name: Build image
         run: docker build -t triage-api:ci .
       - name: Smoke test image
