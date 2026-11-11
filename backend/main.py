@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.dependencies import get_incident_service
 from backend.api.frontend import mount_frontend
 from backend.api.routes import router
-from backend.security.auth import parse_auth_users
 from backend.infrastructure.config import (
     get_cors_origins,
     get_settings,
@@ -16,6 +15,7 @@ from backend.infrastructure.config import (
 from backend.infrastructure.database import SessionLocal, create_tables, engine
 from backend.infrastructure.repositories import AuditRepository, UserRepository
 from backend.logging_config import configure_logging
+from backend.security.auth import parse_auth_users
 from backend.services.users import UserService
 
 settings = get_settings()

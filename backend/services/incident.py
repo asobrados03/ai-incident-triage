@@ -1,13 +1,13 @@
-from datetime import datetime, timezone
 import logging
+from datetime import UTC, datetime
 from time import perf_counter
 from uuid import UUID, uuid4
 
 from backend.analyzers.core import IncidentAnalyzer
-from backend.security.auth import Principal
+from backend.api.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest
 from backend.domain.models import IncidentStatus
 from backend.infrastructure.repositories import AuditRepository, IncidentRepository
-from backend.api.schemas import IncidentCreate, IncidentResponse, TriageReviewRequest
+from backend.security.auth import Principal
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class IncidentService:
         incident = IncidentResponse(
             id=uuid4(),
             status=IncidentStatus.CREATED,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             **data.model_dump(),
         )
         created = self._repository.create(incident)

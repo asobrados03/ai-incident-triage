@@ -5,7 +5,6 @@ from urllib.parse import urlparse
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_DATABASE_URL = f"sqlite:///{PROJECT_ROOT / 'incidents.db'}"
 SUPPORTED_ANALYZER_BACKENDS = {"fake", "ollama"}

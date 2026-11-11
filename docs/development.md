@@ -117,6 +117,8 @@ La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actu
 frontend** (7 archivos).
 
 ```powershell
+python -m pip install "ruff==0.17.4"
+python -m ruff check backend tests evaluation
 python -m pytest -q
 Set-Location frontend
 npm ci
@@ -126,6 +128,7 @@ npm test -- --run
 npm run build
 ```
 
+- `python -m ruff check backend tests evaluation` ejecuta el lint de Python (configuración en `pyproject.toml`).
 - `npm run lint` ejecuta ESLint y `tsc -b` (type-check).
 - `npm run format:check` comprueba el formato con Prettier.
 - `npm test -- --run` ejecuta Vitest en modo no interactivo.
@@ -191,8 +194,8 @@ necesitar despliegue multiinstancia.
 GitHub Actions en `.github/workflows/ci.yml` separa dos jobs:
 
 - **Backend:** instala las versiones fijadas de `requirements.lock` con `--require-hashes`, comprueba que el lock está
-  al día, ejecuta `python -m pytest -q`, construye la imagen Docker y hace un smoke test del contenedor: `/health`, `/`,
-  `/metrics` (fallback del SPA) y `401` en `/incidents` sin credenciales.
+  al día, ejecuta el lint con Ruff y `python -m pytest -q`, construye la imagen Docker y hace un smoke test del contenedor:
+  `/health`, `/`, `/metrics` (fallback del SPA) y `401` en `/incidents` sin credenciales.
 - **Frontend:** instala con `npm ci`, ejecuta `npm run lint`, `npm run format:check`, `npm test -- --run` y
   `npm run build`.
 
@@ -206,7 +209,7 @@ tests/backend/      Suite de pytest del backend
 scripts/            Utilidades, incluida demo.ps1
 docs/               Esta documentación
 Dockerfile          Imagen multi-stage de API + frontend
-pyproject.toml      Metadatos, dependencias y configuración de pytest
+pyproject.toml      Metadatos, dependencias y configuración de pytest y Ruff
 requirements.lock   Versiones fijadas con hashes para CI, Docker y entornos reproducibles
 README.md           Presentación y puesta en marcha rápida
 ```

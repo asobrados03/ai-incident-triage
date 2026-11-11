@@ -1,11 +1,10 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.security.auth import Principal, Role
 from backend.infrastructure.config import Settings, validate_runtime_settings
 from backend.infrastructure.database import Base
 from backend.infrastructure.orm_models import (
@@ -15,6 +14,7 @@ from backend.infrastructure.orm_models import (
     TriageReviewORM,
 )
 from backend.infrastructure.repositories import AuditRepository, RetentionRepository
+from backend.security.auth import Principal, Role
 from backend.services.retention import RetentionService
 
 
@@ -136,7 +136,7 @@ def make_service(session: Session) -> RetentionService:
 
 
 def seed(session: Session) -> dict[str, object]:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old_incident, old_triage = add_incident(
         session,
         created_at=now - timedelta(days=100),

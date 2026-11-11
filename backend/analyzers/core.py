@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
-from typing import Protocol
 import unicodedata
+from dataclasses import dataclass
+from typing import Protocol
 
 import httpx
 
-from backend.infrastructure.config import get_settings
-from backend.domain.models import AnalysisConfidence
 from backend.api.schemas import IncidentCreate, TriageResult
+from backend.domain.models import AnalysisConfidence
+from backend.infrastructure.config import get_settings
 
 
 class IncidentAnalyzer(Protocol):

@@ -11,9 +11,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from backend.analyzers.core import AnalyzerProviderUnavailableError, AnalyzerTimeoutError
 from backend.infrastructure.config import Settings, validate_runtime_settings
 from backend.infrastructure.database import Base, get_db_session
-from backend.main import app
-from backend.main import get_incident_service
 from backend.infrastructure.repositories import IncidentRepository
+from backend.main import app, get_incident_service
 from backend.services.incident import IncidentService
 
 

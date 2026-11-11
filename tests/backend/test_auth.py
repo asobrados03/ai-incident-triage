@@ -1,6 +1,11 @@
 import jwt
 import pytest
 
+from backend.infrastructure.config import (
+    Settings,
+    get_cors_origins,
+    validate_runtime_settings,
+)
 from backend.security.auth import (
     BootstrapUser,
     Principal,
@@ -10,14 +15,7 @@ from backend.security.auth import (
     hash_password,
     parse_auth_users,
     verify_password,
-    verify_refresh_token,
 )
-from backend.infrastructure.config import (
-    Settings,
-    get_cors_origins,
-    validate_runtime_settings,
-)
-
 
 VALID_READER_PASSWORD = "reader-password-0123456789"
 VALID_ADMIN_PASSWORD = "admin-password-0123456789"

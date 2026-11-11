@@ -17,21 +17,6 @@ from backend.api.dependencies import (
     get_retention_service,
     get_user_service,
 )
-from backend.security.auth import (
-    Principal,
-    Role,
-    create_access_token,
-    create_refresh_token,
-    get_principal,
-    jwt_secret_configured,
-    require_role,
-    verify_refresh_token,
-)
-from backend.infrastructure.config import Settings, get_settings
-from backend.infrastructure.database import get_db_session
-from backend.infrastructure.repositories import AuditRepository
-from backend.infrastructure.repositories import IncidentRepository
-from backend.domain.models import AnalysisConfidence, IncidentStatus
 from backend.api.schemas import (
     AuditLogPage,
     IncidentCreate,
@@ -50,6 +35,20 @@ from backend.api.schemas import (
     UserListPage,
     UserResponse,
     UserUpdate,
+)
+from backend.domain.models import AnalysisConfidence, IncidentStatus
+from backend.infrastructure.config import Settings, get_settings
+from backend.infrastructure.database import get_db_session
+from backend.infrastructure.repositories import AuditRepository, IncidentRepository
+from backend.security.auth import (
+    Principal,
+    Role,
+    create_access_token,
+    create_refresh_token,
+    get_principal,
+    jwt_secret_configured,
+    require_role,
+    verify_refresh_token,
 )
 from backend.services.incident import (
     IncidentAnalysisConflictError,

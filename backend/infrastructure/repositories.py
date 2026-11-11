@@ -1,12 +1,25 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID, uuid4
 
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.orm import Session
 
-from backend.security.auth import Principal, Role
+from backend.api.schemas import (
+    AuditLogResponse,
+    CorrectionByConfidence,
+    FieldAccuracy,
+    IncidentListItem,
+    IncidentResponse,
+    ReviewMetricsResponse,
+    TriageResult,
+    TriageResultResponse,
+    TriageReviewRequest,
+    TriageReviewResponse,
+    TriageSummary,
+    UserResponse,
+)
 from backend.domain.models import (
     AnalysisConfidence,
     IncidentCategory,
@@ -21,20 +34,7 @@ from backend.infrastructure.orm_models import (
     TriageReviewORM,
     UserORM,
 )
-from backend.api.schemas import (
-    AuditLogResponse,
-    CorrectionByConfidence,
-    FieldAccuracy,
-    IncidentListItem,
-    ReviewMetricsResponse,
-    IncidentResponse,
-    TriageResult,
-    TriageSummary,
-    TriageReviewRequest,
-    TriageReviewResponse,
-    TriageResultResponse,
-    UserResponse,
-)
+from backend.security.auth import Principal, Role
 
 
 class UserRepository:
@@ -80,7 +80,7 @@ class UserRepository:
         password_hash: str,
         role: Role,
     ) -> UserORM:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         record = UserORM(
             id=str(uuid4()),
             username=username,
@@ -113,19 +113,19 @@ class UserRepository:
             record.role = role.value
         if active is not None:
             record.active = active
-        record.updated_at = datetime.now(timezone.utc)
+        record.updated_at = datetime.now(UTC)
         self._session.commit()
         self._session.refresh(record)
         return record
 
     def mark_login(self, record: UserORM) -> None:
-        record.last_login_at = datetime.now(timezone.utc)
+        record.last_login_at = datetime.now(UTC)
         self._session.commit()
 
     def revoke_tokens(self, record: UserORM) -> None:
         """Incrementa la versión de token para invalidar todos los JWT emitidos."""
         record.token_version += 1
-        record.updated_at = datetime.now(timezone.utc)
+        record.updated_at = datetime.now(UTC)
         self._session.commit()
 
     @staticmethod
@@ -237,7 +237,7 @@ class IncidentRepository:
             "justification",
             "confidence",
         )
-        correct_by_field = {field: 0 for field in fields}
+        correct_by_field = dict.fromkeys(fields, 0)
         confusion: dict[str, dict[str, dict[str, int]]] = {
             field: {} for field in ("category", "severity", "priority", "confidence")
         }
@@ -426,7 +426,7 @@ class IncidentRepository:
         record = TriageResultORM(
             id=str(uuid4()),
             incident_id=str(incident_id),
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
             **result.model_dump(mode="json"),
         )
         self._session.add(record)
@@ -484,7 +484,7 @@ class IncidentRepository:
         record = TriageReviewORM(
             id=str(uuid4()),
             triage_id=triage.id,
-            reviewed_at=datetime.now(timezone.utc),
+            reviewed_at=datetime.now(UTC),
             source="human",
             review_comment=review.review_comment,
             review_checklist=list(review.review_checklist or []),
@@ -530,7 +530,7 @@ class AuditRepository:
         self._session.add(
             AuditLogORM(
                 id=str(uuid4()),
-                created_at=datetime.now(timezone.utc),
+                created_at=datetime.now(UTC),
                 actor=actor.name,
                 role=actor.role.value,
                 action=action,

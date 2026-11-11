@@ -1,5 +1,5 @@
-import os
 import pytest
+
 from backend.infrastructure.config import get_settings
 
 

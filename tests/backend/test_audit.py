@@ -5,11 +5,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.analyzers.core import AnalyzerProviderUnavailableError, FakeAnalyzer
-from backend.security.auth import Principal, Role
-from backend.infrastructure.database import Base
-from backend.domain.models import IncidentSeverity
-from backend.infrastructure.repositories import AuditRepository, IncidentRepository
 from backend.api.schemas import IncidentCreate, TriageReviewRequest
+from backend.domain.models import IncidentSeverity
+from backend.infrastructure.database import Base
+from backend.infrastructure.repositories import AuditRepository, IncidentRepository
+from backend.security.auth import Principal, Role
 from backend.services.incident import IncidentService
 
 

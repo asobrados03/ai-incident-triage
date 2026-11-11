@@ -24,6 +24,10 @@ jobs:
           cd .lockcheck
           uv pip compile --universal --extra test --generate-hashes pyproject.toml -o requirements.lock
           diff -u "$GITHUB_WORKSPACE/requirements.lock" requirements.lock
+      - name: Lint backend
+        run: |
+          python -m pip install --quiet "ruff==0.17.4"
+          python -m ruff check backend tests evaluation
       - name: Run tests
         run: python -m pytest -q
       - name: Build image

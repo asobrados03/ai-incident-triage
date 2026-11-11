@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from enum import StrEnum
 import re
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 
 import jwt
 from argon2 import PasswordHasher
@@ -44,11 +44,11 @@ class Principal:
     authenticated: bool = True
 
     @classmethod
-    def anonymous(cls) -> "Principal":
+    def anonymous(cls) -> Principal:
         return cls(name="anonymous", role=Role.ADMIN, authenticated=False)
 
     @classmethod
-    def system(cls) -> "Principal":
+    def system(cls) -> Principal:
         return cls(name="system", role=Role.ADMIN, authenticated=False)
 
     def has_at_least(self, required: Role) -> bool:
@@ -139,7 +139,7 @@ def create_access_token(
     secret = _raw_secret(settings.jwt_secret)
     if len(secret) < 32:
         raise ValueError("JWT_SECRET must be at least 32 characters")
-    issued_at = datetime.now(timezone.utc)
+    issued_at = datetime.now(UTC)
     expires_at = issued_at + timedelta(minutes=settings.jwt_expiration_minutes)
     return jwt.encode(
         {
@@ -163,7 +163,7 @@ def create_refresh_token(
     secret = _raw_secret(settings.jwt_secret)
     if len(secret) < 32:
         raise ValueError("JWT_SECRET must be at least 32 characters")
-    issued_at = datetime.now(timezone.utc)
+    issued_at = datetime.now(UTC)
     expires_at = issued_at + timedelta(days=settings.refresh_token_expiration_days)
     return jwt.encode(
         {

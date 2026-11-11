@@ -2,6 +2,9 @@ import pytest
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session, sessionmaker
 
+from backend.api.schemas import UserCreate, UserUpdate
+from backend.infrastructure.database import Base, apply_lightweight_migrations
+from backend.infrastructure.repositories import AuditRepository, UserRepository
 from backend.security.auth import (
     BootstrapUser,
     Principal,
@@ -9,11 +12,7 @@ from backend.security.auth import (
     hash_password,
     verify_password,
 )
-from backend.infrastructure.database import Base, apply_lightweight_migrations
-from backend.infrastructure.repositories import AuditRepository, UserRepository
-from backend.api.schemas import UserCreate, UserUpdate
 from backend.services.users import UserConflictError, UserService
-
 
 ADMIN_PASSWORD = "admin-password-0123456789"
 READER_PASSWORD = "reader-password-0123456789"

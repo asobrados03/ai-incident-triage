@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timedelta, timezone
 import json
+from datetime import UTC, datetime, timedelta
 
-from backend.security.auth import Principal, Role
+from backend.api.schemas import RetentionRunResponse
 from backend.infrastructure.config import get_settings, validate_runtime_settings
 from backend.infrastructure.database import SessionLocal, create_tables, engine
 from backend.infrastructure.repositories import AuditRepository, RetentionRepository
-from backend.api.schemas import RetentionRunResponse
+from backend.security.auth import Principal, Role
 
 
 class RetentionService:
@@ -43,7 +43,7 @@ class RetentionService:
         if effective_audit_days <= 0:
             raise ValueError("audit_days must be greater than zero")
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         incident_cutoff = now - timedelta(days=effective_incidents_days)
         audit_cutoff = now - timedelta(days=effective_audit_days)
 

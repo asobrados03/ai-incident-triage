@@ -1,7 +1,7 @@
 """Offline analyzer evaluation."""
 
 from evaluation import runner as _runner
-from evaluation.runner import *  # noqa: F403
+from evaluation.runner import build_analyzer, load_dataset
 
 
 def main() -> None:

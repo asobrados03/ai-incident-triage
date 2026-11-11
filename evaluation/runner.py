@@ -1,25 +1,26 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter, defaultdict
-from dataclasses import asdict, dataclass
+import contextlib
 import json
 import math
-from pathlib import Path
 import sys
 import time
+from collections import Counter, defaultdict
+from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
 from backend.analyzers.core import FakeAnalyzer, IncidentAnalyzer, OllamaAnalyzer
+from backend.api.schemas import IncidentCreate, TriageResult
 from backend.domain.models import (
     AnalysisConfidence,
     IncidentCategory,
     IncidentPriority,
     IncidentSeverity,
 )
-from backend.api.schemas import IncidentCreate, TriageResult
 
 EVALUATION_DATA_DIR = Path(__file__).resolve().parent / "data"
 DEFAULT_DATASET = EVALUATION_DATA_DIR / "incidents.json"
@@ -193,7 +194,7 @@ def evaluate_cases(
             result = analyzer.analyze(case.input)
             if not isinstance(result, TriageResult):
                 raise TypeError("Analyzer result is not a TriageResult")
-        except Exception as error:  # noqa: BLE001 - metrics must count any failure
+        except Exception as error:  # las métricas deben contar cualquier fallo
             outcomes.append(
                 CaseOutcome(
                     id=case.id,
@@ -675,10 +676,8 @@ def _configure_output_encoding() -> None:
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is None:
             continue
-        try:
+        with contextlib.suppress(OSError, ValueError):
             reconfigure(encoding="utf-8")
-        except (OSError, ValueError):
-            pass
 
 
 def main() -> None:

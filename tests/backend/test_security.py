@@ -6,13 +6,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from backend.security.auth import parse_auth_users
 from backend.infrastructure.config import Settings, get_settings
 from backend.infrastructure.database import Base, get_db_session
 from backend.infrastructure.repositories import UserRepository
 from backend.main import app
+from backend.security.auth import parse_auth_users
 from backend.services.users import UserService
-
 
 PASSWORDS = {
     "reader": "reader-password-0123456789",
