@@ -119,11 +119,12 @@ def add_audit_log(
 
 
 def count_audit(session: Session, action: str) -> int:
-    return session.scalar(
-        select(func.count())
-        .select_from(AuditLogORM)
-        .where(AuditLogORM.action == action),
-    ) or 0
+    return (
+        session.scalar(
+            select(func.count()).select_from(AuditLogORM).where(AuditLogORM.action == action),
+        )
+        or 0
+    )
 
 
 def make_service(session: Session) -> RetentionService:

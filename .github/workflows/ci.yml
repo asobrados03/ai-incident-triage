@@ -27,7 +27,9 @@ jobs:
           diff -u "$GITHUB_WORKSPACE/requirements.lock" requirements.lock
           diff -u "$GITHUB_WORKSPACE/requirements-dev.lock" requirements-dev.lock
       - name: Lint backend
-        run: python -m ruff check backend tests evaluation
+        run: |
+          python -m ruff check backend tests evaluation
+          python -m ruff format --check backend tests evaluation
       - name: Type-check backend
         run: python -m mypy
       - name: Run tests

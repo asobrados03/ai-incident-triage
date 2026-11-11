@@ -69,10 +69,7 @@ class UserRepository:
     def list(self, *, limit: int, offset: int) -> tuple[list[UserORM], int]:
         total = int(self._session.scalar(select(func.count(UserORM.id))) or 0)
         records = self._session.scalars(
-            select(UserORM)
-            .order_by(UserORM.username.asc())
-            .limit(limit)
-            .offset(offset),
+            select(UserORM).order_by(UserORM.username.asc()).limit(limit).offset(offset),
         ).all()
         return list(records), total
 
@@ -225,8 +222,7 @@ class IncidentRepository:
 
     def review_metrics(self) -> ReviewMetricsResponse:
         rows = self._session.execute(
-            select(TriageResultORM, TriageReviewORM)
-            .join(
+            select(TriageResultORM, TriageReviewORM).join(
                 TriageReviewORM,
                 TriageReviewORM.triage_id == TriageResultORM.id,
             ),
@@ -285,20 +281,12 @@ class IncidentRepository:
         return ReviewMetricsResponse(
             total_reviewed=total_reviewed,
             accepted_without_changes=accepted_without_changes,
-            acceptance_rate=(
-                accepted_without_changes / total_reviewed
-                if total_reviewed
-                else 0.0
-            ),
+            acceptance_rate=(accepted_without_changes / total_reviewed if total_reviewed else 0.0),
             field_accuracy={
                 field: FieldAccuracy(
                     total=total_reviewed,
                     correct=correct_by_field[field],
-                    accuracy=(
-                        correct_by_field[field] / total_reviewed
-                        if total_reviewed
-                        else 0.0
-                    ),
+                    accuracy=(correct_by_field[field] / total_reviewed if total_reviewed else 0.0),
                 )
                 for field in fields
             },
@@ -350,9 +338,7 @@ class IncidentRepository:
             status=IncidentStatus(record.status),
             created_at=record.created_at,
             confidence=(
-                AnalysisConfidence(record.triage.confidence)
-                if record.triage is not None
-                else None
+                AnalysisConfidence(record.triage.confidence) if record.triage is not None else None
             ),
             proposal=proposal,
             final=final,

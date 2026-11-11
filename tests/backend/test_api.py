@@ -662,9 +662,7 @@ def test_review_persists_the_human_checklist(client: SyncASGIClient) -> None:
     ]
 
     fetched = client.get(f"/incidents/{incident_id}")
-    assert fetched.json()["triage"]["review"]["review_checklist"] == review[
-        "review_checklist"
-    ]
+    assert fetched.json()["triage"]["review"]["review_checklist"] == review["review_checklist"]
 
 
 def test_review_audit_only_lists_fields_that_actually_changed(

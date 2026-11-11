@@ -149,25 +149,17 @@ class UserService:
             and self._repository.count_active_admins() <= 1
         ):
             raise UserConflictError("Cannot demote the last active admin")
-        if (
-            is_active_admin
-            and data.active is False
-            and self._repository.count_active_admins() <= 1
-        ):
+        if is_active_admin and data.active is False and self._repository.count_active_admins() <= 1:
             raise UserConflictError("Cannot deactivate the last active admin")
         if data.active is False and record.username == actor.name:
             raise UserConflictError("Cannot deactivate your own user")
 
         changed_fields = sorted(
-            key
-            for key, value in data.model_dump(exclude_none=True).items()
-            if value is not None
+            key for key, value in data.model_dump(exclude_none=True).items() if value is not None
         )
         record = self._repository.update(
             record,
-            password_hash=(
-                hash_password(data.password) if data.password is not None else None
-            ),
+            password_hash=(hash_password(data.password) if data.password is not None else None),
             role=data.role,
             active=data.active,
         )

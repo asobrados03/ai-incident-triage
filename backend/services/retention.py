@@ -35,9 +35,7 @@ class RetentionService:
         effective_incidents_days = (
             incidents_days if incidents_days is not None else self._incidents_days
         )
-        effective_audit_days = (
-            audit_days if audit_days is not None else self._audit_days
-        )
+        effective_audit_days = audit_days if audit_days is not None else self._audit_days
         if effective_incidents_days <= 0:
             raise ValueError("incidents_days must be greater than zero")
         if effective_audit_days <= 0:

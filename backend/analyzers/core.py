@@ -169,9 +169,7 @@ _URGENT_IMPACT = (
     r"|\b(?:datos|facturas|pedidos|informacion|documentos|archivos) de otr[ao]"
     r"|\bcuenta ajena|\bacceso indebido|\bfuga de datos"
 )
-_CONNECTIVITY_IMPACT = (
-    r"\bconect|\bconexion|\bdatabase_url|\bdespliegue|\bcredencial"
-)
+_CONNECTIVITY_IMPACT = r"\bconect|\bconexion|\bdatabase_url|\bdespliegue|\bcredencial"
 
 _UNCERTAINTY = (
     r"\ba veces|\bocasional|\bintermitente|\besporadic"
@@ -366,9 +364,7 @@ class FakeAnalyzer:
             else "sin señales específicas, se aplica la categoría por defecto"
         )
         impact_reason = (
-            f"impacto {', '.join(impact_signals)}"
-            if impact_signals
-            else "sin señales de impacto"
+            f"impacto {', '.join(impact_signals)}" if impact_signals else "sin señales de impacto"
         )
         missing_reason = (
             f"faltan datos: {', '.join(missing_information)}"
@@ -438,10 +434,7 @@ class OllamaAnalyzer:
         try:
             content = response.json()["message"]["content"]
             result = TriageResult.model_validate_json(content)
-            if (
-                result.missing_information
-                and result.confidence is AnalysisConfidence.HIGH
-            ):
+            if result.missing_information and result.confidence is AnalysisConfidence.HIGH:
                 result = result.model_copy(
                     update={"confidence": AnalysisConfidence.MEDIUM},
                 )

@@ -19,10 +19,7 @@ from backend.security.auth import (
 
 VALID_READER_PASSWORD = "reader-password-0123456789"
 VALID_ADMIN_PASSWORD = "admin-password-0123456789"
-AUTH_USERS = (
-    f"reader:reader:{VALID_READER_PASSWORD},"
-    f"admin:admin:{VALID_ADMIN_PASSWORD}"
-)
+AUTH_USERS = f"reader:reader:{VALID_READER_PASSWORD},admin:admin:{VALID_ADMIN_PASSWORD}"
 JWT_SECRET = "test-jwt-secret-that-is-long-enough-123456"
 
 

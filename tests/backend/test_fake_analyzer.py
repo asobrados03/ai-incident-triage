@@ -193,8 +193,7 @@ def test_invalid_credentials_point_to_configuration() -> None:
     result = analyze(
         title="Credenciales inválidas al conectar con el almacenamiento",
         description=(
-            "La aplicación no conecta con el almacenamiento porque las "
-            "credenciales son inválidas."
+            "La aplicación no conecta con el almacenamiento porque las credenciales son inválidas."
         ),
         environment="Staging",
         components=["backend", "storage"],
@@ -233,10 +232,7 @@ def test_document_word_does_not_imply_documentation() -> None:
 def test_install_guide_is_documentation_even_if_it_mentions_configuration() -> None:
     result = analyze(
         title="La guía de instalación omite un paso",
-        description=(
-            "La guía de instalación no incluye el paso para configurar la "
-            "base de datos."
-        ),
+        description=("La guía de instalación no incluye el paso para configurar la base de datos."),
         environment="Desarrollo",
         components=["docs"],
     )

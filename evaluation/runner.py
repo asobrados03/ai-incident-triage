@@ -120,8 +120,7 @@ class BackendComparison:
             "error_rate",
         )
         return {
-            field: getattr(self.candidate_metrics, field)
-            - getattr(self.baseline_metrics, field)
+            field: getattr(self.candidate_metrics, field) - getattr(self.baseline_metrics, field)
             for field in fields
         }
 
@@ -214,9 +213,7 @@ def evaluate_cases(
             "confidence": result.confidence.value,
         }
         mismatches = tuple(
-            field
-            for field in _SCORED_FIELDS
-            if actual[field] != case.expected.get(field)
+            field for field in _SCORED_FIELDS if actual[field] != case.expected.get(field)
         )
         outcomes.append(
             CaseOutcome(
@@ -350,8 +347,7 @@ def _accuracy(
     hits = sum(
         1
         for outcome in outcomes
-        if outcome.actual is not None
-        and outcome.actual[field] == outcome.expected.get(field)
+        if outcome.actual is not None and outcome.actual[field] == outcome.expected.get(field)
     )
     return hits / denominator
 
@@ -378,16 +374,8 @@ def _class_metrics(
     metrics: dict[str, dict[str, float | int]] = {}
     for label in labels:
         true_positive = counts[label][label]
-        false_positive = sum(
-            counts[expected][label]
-            for expected in labels
-            if expected != label
-        )
-        false_negative = sum(
-            counts[label][predicted]
-            for predicted in labels
-            if predicted != label
-        )
+        false_positive = sum(counts[expected][label] for expected in labels if expected != label)
+        false_negative = sum(counts[label][predicted] for predicted in labels if predicted != label)
         precision = (
             true_positive / (true_positive + false_positive)
             if true_positive + false_positive
@@ -398,11 +386,7 @@ def _class_metrics(
             if true_positive + false_negative
             else 0.0
         )
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if precision + recall
-            else 0.0
-        )
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
         metrics[label] = {
             "precision": precision,
             "recall": recall,
@@ -414,9 +398,7 @@ def _class_metrics(
 
 def _macro_f1(metrics: dict[str, dict[str, float | int]]) -> float:
     active = [
-        float(values["f1"])
-        for values in metrics.values()
-        if values["support"] or values["f1"]
+        float(values["f1"]) for values in metrics.values() if values["support"] or values["f1"]
     ]
     return sum(active) / len(active) if active else 0.0
 
@@ -438,20 +420,12 @@ def _missing_metrics(
         false_negative += len(expected - predicted)
 
     precision = (
-        true_positive / (true_positive + false_positive)
-        if true_positive + false_positive
-        else 1.0
+        true_positive / (true_positive + false_positive) if true_positive + false_positive else 1.0
     )
     recall = (
-        true_positive / (true_positive + false_negative)
-        if true_positive + false_negative
-        else 1.0
+        true_positive / (true_positive + false_negative) if true_positive + false_negative else 1.0
     )
-    f1 = (
-        2 * precision * recall / (precision + recall)
-        if precision + recall
-        else 0.0
-    )
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
     return precision, recall, f1
 
 
@@ -463,8 +437,7 @@ def _confidence_calibration(
         level_outcomes = [
             outcome
             for outcome in outcomes
-            if outcome.actual is not None
-            and outcome.actual["confidence"] == level.value
+            if outcome.actual is not None and outcome.actual["confidence"] == level.value
         ]
         correct = sum(not outcome.mismatches for outcome in level_outcomes)
         calibration[level.value] = {
@@ -554,8 +527,7 @@ def print_summary(
         title = f"{title} ({label})"
     print(title, file=file)
     print(
-        f"Casos: {metrics.total} | Válidos: {metrics.valid_responses} | "
-        f"Errores: {metrics.errors}",
+        f"Casos: {metrics.total} | Válidos: {metrics.valid_responses} | Errores: {metrics.errors}",
         file=file,
     )
     print(
@@ -577,15 +549,13 @@ def print_summary(
     print("Calibración de confianza (nivel -> aciertos/casos):", file=file)
     for level, values in metrics.confidence_calibration.items():
         print(
-            f"  {level}: {values['fully_correct']}/{values['cases']} "
-            f"({values['accuracy']:.3f})",
+            f"  {level}: {values['fully_correct']}/{values['cases']} ({values['accuracy']:.3f})",
             file=file,
         )
 
     if metrics.errors_by_category:
         errors = ", ".join(
-            f"{category}={count}"
-            for category, count in sorted(metrics.errors_by_category.items())
+            f"{category}={count}" for category, count in sorted(metrics.errors_by_category.items())
         )
         print(f"Errores por categoría esperada: {errors}", file=file)
     else:
@@ -595,8 +565,7 @@ def print_summary(
         confusions = _top_confusions(metrics.confusion_matrix[field])
         if confusions:
             formatted = ", ".join(
-                f"{expected}->{predicted}={count}"
-                for count, expected, predicted in confusions
+                f"{expected}->{predicted}={count}" for count, expected, predicted in confusions
             )
             print(f"Confusiones {field}: {formatted}", file=file)
 

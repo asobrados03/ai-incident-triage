@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from backend.api.frontend import mount_frontend
 
 HTML = {"Accept": "text/html,application/xhtml+xml"}
-INDEX = "<div id=\"root\"></div>"
+INDEX = '<div id="root"></div>'
 
 
 def make_dist(tmp_path: Path) -> Path:

@@ -144,16 +144,12 @@ def test_lightweight_migration_adds_checklist_to_legacy_database(
         )
         connection.execute(
             text(
-                "INSERT INTO triage_reviews (id, review_comment) "
-                "VALUES ('legacy', 'ok')",
+                "INSERT INTO triage_reviews (id, review_comment) VALUES ('legacy', 'ok')",
             ),
         )
 
     apply_lightweight_migrations(database_engine)
 
-    columns = {
-        column["name"]
-        for column in inspect(database_engine).get_columns("triage_reviews")
-    }
+    columns = {column["name"] for column in inspect(database_engine).get_columns("triage_reviews")}
     assert "review_checklist" in columns
     database_engine.dispose()

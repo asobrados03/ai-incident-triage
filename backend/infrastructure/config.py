@@ -58,9 +58,13 @@ def validate_runtime_settings(settings: Settings) -> None:
         raise ValueError("JWT_EXPIRATION_MINUTES must be greater than zero")
     if settings.refresh_token_expiration_days <= 0:
         raise ValueError("REFRESH_TOKEN_EXPIRATION_DAYS must be greater than zero")
-    if settings.auth_users.get_secret_value().strip() and len(
-        settings.jwt_secret.get_secret_value(),
-    ) < 32:
+    if (
+        settings.auth_users.get_secret_value().strip()
+        and len(
+            settings.jwt_secret.get_secret_value(),
+        )
+        < 32
+    ):
         raise ValueError("JWT_SECRET must be at least 32 characters")
 
     # Import local para evitar un ciclo de imports entre config y auth.

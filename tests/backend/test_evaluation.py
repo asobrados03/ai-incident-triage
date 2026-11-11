@@ -157,9 +157,7 @@ def test_load_reference_dataset_has_balanced_cases() -> None:
         "critical",
     }
 
-    latency_case = next(
-        case for case in cases if case.id == "occasional-incident-creation-latency"
-    )
+    latency_case = next(case for case in cases if case.id == "occasional-incident-creation-latency")
     assert latency_case.expected["missing_information"] == [
         "latencia observada",
         "porcentaje de peticiones afectadas",
@@ -265,14 +263,11 @@ def test_evaluation_exposes_per_class_metrics_and_confusion_matrix() -> None:
         "urgent",
     }
 
-    supports = sum(
-        int(values["support"]) for values in metrics.per_class["category"].values()
-    )
+    supports = sum(int(values["support"]) for values in metrics.per_class["category"].values())
     assert supports == metrics.valid_responses
 
     confusion_total = sum(
-        sum(row.values())
-        for row in metrics.confusion_matrix["category"].values()
+        sum(row.values()) for row in metrics.confusion_matrix["category"].values()
     )
     assert confusion_total == metrics.valid_responses
 
@@ -282,10 +277,7 @@ def test_confidence_calibration_covers_every_level() -> None:
 
     assert set(metrics.confidence_calibration) == {"low", "medium", "high"}
     assert (
-        sum(
-            int(values["cases"])
-            for values in metrics.confidence_calibration.values()
-        )
+        sum(int(values["cases"]) for values in metrics.confidence_calibration.values())
         == metrics.valid_responses
     )
     for values in metrics.confidence_calibration.values():

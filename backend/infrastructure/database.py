@@ -42,8 +42,7 @@ def apply_lightweight_migrations(database_engine: Engine = engine) -> None:
         with database_engine.begin() as connection:
             connection.execute(
                 text(
-                    "ALTER TABLE triage_reviews "
-                    "ADD COLUMN review_checklist JSON",
+                    "ALTER TABLE triage_reviews ADD COLUMN review_checklist JSON",
                 ),
             )
 

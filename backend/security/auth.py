@@ -71,8 +71,7 @@ class BootstrapUser:
 def hash_password(password: str) -> str:
     if not PASSWORD_MIN_LENGTH <= len(password) <= PASSWORD_MAX_LENGTH:
         raise ValueError(
-            f"Password must be between {PASSWORD_MIN_LENGTH} and "
-            f"{PASSWORD_MAX_LENGTH} characters",
+            f"Password must be between {PASSWORD_MIN_LENGTH} and {PASSWORD_MAX_LENGTH} characters",
         )
     return _hasher.hash(password)
 
@@ -211,11 +210,7 @@ def verify_refresh_token(
     if payload.get("typ") != "refresh":
         raise _unauthorized()
     user = user_repository.get_by_username(str(payload.get("sub", "")))
-    if (
-        user is None
-        or not user.active
-        or int(payload.get("ver", -1)) != user.token_version
-    ):
+    if user is None or not user.active or int(payload.get("ver", -1)) != user.token_version:
         raise _unauthorized()
     return user
 
@@ -249,11 +244,7 @@ def get_principal(
         user = user_repository.get_by_username(str(payload["sub"]))
     except (jwt.InvalidTokenError, KeyError, TypeError, ValueError) as error:
         raise _unauthorized() from error
-    if (
-        user is None
-        or not user.active
-        or int(payload.get("ver", -1)) != user.token_version
-    ):
+    if user is None or not user.active or int(payload.get("ver", -1)) != user.token_version:
         raise _unauthorized()
     return Principal(name=user.username, role=Role(user.role))
 

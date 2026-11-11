@@ -18,9 +18,7 @@ PASSWORDS = {
     "writer": "writer-password-0123456789",
     "admin": "admin-password-0123456789",
 }
-AUTH_USERS = ",".join(
-    f"{name}:{name}:{password}" for name, password in PASSWORDS.items()
-)
+AUTH_USERS = ",".join(f"{name}:{name}:{password}" for name, password in PASSWORDS.items())
 JWT_SECRET = "test-jwt-secret-that-is-long-enough-123456"
 
 
@@ -478,11 +476,7 @@ def test_retention_rejects_non_positive_days(
 def find_user_id(client: SyncASGIClient, username: str) -> str:
     response = client.get("/users", headers=auth(client, "admin"))
     assert response.status_code == 200
-    return next(
-        item["id"]
-        for item in response.json()["items"]
-        if item["username"] == username
-    )
+    return next(item["id"] for item in response.json()["items"] if item["username"] == username)
 
 
 def test_auth_me_reports_the_authenticated_role(
@@ -531,9 +525,7 @@ def test_admin_can_create_and_list_users_without_exposing_hashes(
     listed = secure_client.get("/users", headers=admin_auth)
     assert listed.status_code == 200
     assert listed.json()["total"] == 4
-    assert "nuevo.soporte" in {
-        item["username"] for item in listed.json()["items"]
-    }
+    assert "nuevo.soporte" in {item["username"] for item in listed.json()["items"]}
     assert "argon2" not in listed.text
 
     login = secure_client.post(
@@ -665,10 +657,13 @@ def test_deactivation_revokes_access(
     assert deactivated.status_code == 200
     assert deactivated.json()["active"] is False
     assert secure_client.get("/auth/me", headers=writer_token).status_code == 401
-    assert secure_client.post(
-        "/auth/login",
-        json={"username": "writer", "password": PASSWORDS["writer"]},
-    ).status_code == 401
+    assert (
+        secure_client.post(
+            "/auth/login",
+            json={"username": "writer", "password": PASSWORDS["writer"]},
+        ).status_code
+        == 401
+    )
 
 
 def test_last_active_admin_cannot_be_demoted_or_deactivated(
