@@ -119,8 +119,8 @@ vacía. El comportamiento de autenticación, roles y revocación se detalla en
 
 ## Tests y validaciones
 
-La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **151 tests backend** y **37 tests
-frontend** (7 archivos).
+La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **151 tests backend** (131 en
+`backend/tests` y 20 en `evaluation/tests`) y **37 tests frontend** (7 archivos).
 
 ```powershell
 python -m pip install "ruff==0.17.4" "mypy==2.4.1"
@@ -142,9 +142,11 @@ npm run build
   el resto de opciones también está en `pyproject.toml`.
 - `python -m pytest -q --cov --cov-report=term-missing` ejecuta la suite con cobertura de `backend` y `evaluation`. El
   umbral mínimo es **90%** (`fail_under`) y la configuración vive en `pyproject.toml`.
-- Los tests viven en `backend/tests/`, junto al código que prueban, igual que en el frontend. Quedan fuera de la imagen
-  Docker (`.dockerignore`), de la distribución instalada (`setuptools`), de la cobertura (`omit`) y del type-check
-  (`mypy.exclude`).
+- Los tests viven en `backend/tests/` y `evaluation/tests/`, junto al código que prueban, igual que en el frontend.
+  Quedan fuera de la imagen Docker (`.dockerignore`), de la distribución instalada (`setuptools`), de la cobertura
+  (`omit`) y del type-check (`mypy.exclude`).
+- Pytest usa `--import-mode=importlib` (en `addopts`). Con dos raíces de tests, da a cada módulo un nombre único por
+  ruta y evita que dos archivos con el mismo nombre colisionen en la recolección.
 - `npm run lint` ejecuta ESLint y `tsc -b` (type-check).
 - `npm run format:check` comprueba el formato con Prettier.
 - `npm test -- --run` ejecuta Vitest en modo no interactivo.
@@ -223,6 +225,7 @@ backend/            API FastAPI por capas (api, domain, services, infrastructure
 backend/tests/      Suite de pytest del backend, junto al código que prueba
 frontend/           Aplicación Vite + React + TypeScript
 evaluation/         runner.py, data/ y results/ para la evaluación offline
+evaluation/tests/   Suite de pytest de la evaluación offline
 scripts/            Utilidades, incluida demo.ps1
 docs/               Esta documentación
 Dockerfile          Imagen multi-stage de API + frontend
