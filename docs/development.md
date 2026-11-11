@@ -15,7 +15,7 @@ flujo de datos, consulta [architecture.md](architecture.md); para los conjuntos 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --require-hashes -r requirements.lock
+python -m pip install --require-hashes -r requirements-dev.lock
 python -m pip install --no-deps -e .
 uvicorn backend.main:app --reload
 ```
@@ -25,27 +25,33 @@ en `/health`. SQLite usa por defecto una ruta absoluta en la raíz del proyecto 
 directorio desde el que se arranque Uvicorn. El backend de análisis por defecto es `fake`, por lo que este arranque no
 necesita Ollama.
 
-`requirements.lock` fija todas las dependencias (incluidas las de test) con hashes. Instalar el proyecto con
-`--no-deps` evita que pip vuelva a resolver versiones. Si solo necesitas un entorno rápido y no te importa la
-reproducibilidad, `python -m pip install -e ".[test]"` sigue funcionando.
+`requirements-dev.lock` fija las dependencias de desarrollo (runtime, test y herramientas) con hashes; para un entorno
+solo de ejecución usa `requirements.lock`. Instalar el proyecto con `--no-deps` evita que pip vuelva a resolver
+versiones. Si solo necesitas un entorno rápido y no te importa la reproducibilidad,
+`python -m pip install -e ".[test,dev]"` sigue funcionando.
 
 ## Lock de dependencias
 
-`requirements.lock` es la fuente de versiones para CI, Docker y cualquier entorno reproducible. Se genera con
-[uv](https://docs.astral.sh/uv/) `0.13.7` en modo universal: el mismo archivo sirve en Windows, macOS y Linux (por
-ejemplo, `uvloop` solo se instala fuera de Windows).
+Hay dos locks generados con [uv](https://docs.astral.sh/uv/) `0.13.7` en modo universal: el mismo archivo sirve en
+Windows, macOS y Linux (por ejemplo, `uvloop` solo se instala fuera de Windows).
+
+- `requirements.lock`: solo runtime. Es el que usa la imagen Docker.
+- `requirements-dev.lock`: runtime + extras `test` y `dev` (pytest, pytest-cov, Ruff y mypy). Es el que usa la CI y el
+  entorno local de desarrollo.
 
 ```powershell
 python -m pip install "uv==0.13.7"
-uv pip compile --universal --extra test --generate-hashes pyproject.toml -o requirements.lock
+uv pip compile --universal --generate-hashes pyproject.toml -o requirements.lock
+uv pip compile --universal --extra test --extra dev --generate-hashes pyproject.toml -o requirements-dev.lock
 ```
 
 Reglas:
 
-- Si cambias las dependencias en `pyproject.toml`, regenera `requirements.lock` en el mismo cambio.
-- Instala con `python -m pip install --require-hashes -r requirements.lock`.
-- No edites el lock a mano: la cabecera y los hashes los genera uv.
-- La CI recompila el lock y falla si no coincide, así que un `pyproject.toml` sin lock actualizado no pasa.
+- Si cambias las dependencias en `pyproject.toml`, regenera **los dos** locks en el mismo cambio.
+- Instala con `python -m pip install --require-hashes -r requirements-dev.lock` en desarrollo, o
+  `-r requirements.lock` si solo necesitas runtime.
+- No edites los locks a mano: la cabecera y los hashes los genera uv.
+- La CI recompila ambos y falla si no coinciden, así que un `pyproject.toml` sin locks actualizados no pasa.
 
 ## Instalación del frontend
 
@@ -198,9 +204,9 @@ necesitar despliegue multiinstancia.
 
 GitHub Actions en `.github/workflows/ci.yml` separa dos jobs:
 
-- **Backend:** instala las versiones fijadas de `requirements.lock` con `--require-hashes`, comprueba que el lock está
-  al día, ejecuta el lint con Ruff, el type-check con mypy y la suite con cobertura (`--cov`, umbral 90%), construye la
-  imagen Docker y hace un smoke test del contenedor: `/health`, `/`, `/metrics` (fallback del SPA) y `401` en
+- **Backend:** instala las versiones fijadas de `requirements-dev.lock` con `--require-hashes`, comprueba que ambos locks
+  están al día, ejecuta el lint con Ruff, el type-check con mypy y la suite con cobertura (`--cov`, umbral 90%), construye
+  la imagen Docker y hace un smoke test del contenedor: `/health`, `/`, `/metrics` (fallback del SPA) y `401` en
   `/incidents` sin credenciales.
 - **Frontend:** instala con `npm ci`, ejecuta `npm run lint`, `npm run format:check`, `npm test -- --run` y
   `npm run build`.
@@ -216,6 +222,7 @@ scripts/            Utilidades, incluida demo.ps1
 docs/               Esta documentación
 Dockerfile          Imagen multi-stage de API + frontend
 pyproject.toml      Metadatos, dependencias y configuración de pytest, Ruff y mypy
-requirements.lock   Versiones fijadas con hashes para CI, Docker y entornos reproducibles
+requirements.lock      Versiones fijadas con hashes para runtime (imagen Docker)
+requirements-dev.lock  Versiones fijadas con hashes para CI y desarrollo (test + herramientas)
 README.md           Presentación y puesta en marcha rápida
 ```

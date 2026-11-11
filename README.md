@@ -18,7 +18,7 @@ Backend:
 Copy-Item .env.example .env
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install --require-hashes -r requirements.lock
+python -m pip install --require-hashes -r requirements-dev.lock
 python -m pip install --no-deps -e .
 uvicorn backend.main:app --reload
 ```
@@ -26,8 +26,9 @@ uvicorn backend.main:app --reload
 La API queda en `http://127.0.0.1:8000`, la documentación OpenAPI en `/docs` y el health check público en `/health`.
 La plantilla `.env` usa el backend `fake`, así que no necesitas Ollama para arrancar, y siembra los usuarios de ejemplo:
 `admin` / `admin-password-12345678`, `soporte` / `soporte-pass-12345678` y `auditor` / `auditor-pass-12345678`.
-Cambia esas credenciales antes de exponer la API fuera de localhost. Las versiones están fijadas en `requirements.lock`;
-si cambias `pyproject.toml`, regenéralo con uv según [Desarrollo](docs/development.md).
+Cambia esas credenciales antes de exponer la API fuera de localhost. Las versiones están fijadas en
+`requirements-dev.lock` (desarrollo) y `requirements.lock` (runtime); si cambias `pyproject.toml`, regenera ambos con uv
+según [Desarrollo](docs/development.md).
 
 Frontend, en otra terminal:
 
