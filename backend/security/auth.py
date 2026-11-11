@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 import jwt
 from argon2 import PasswordHasher
@@ -15,6 +17,10 @@ from sqlalchemy.orm import Session
 
 from backend.infrastructure.config import Settings, get_settings
 from backend.infrastructure.database import get_db_session
+
+if TYPE_CHECKING:
+    from backend.infrastructure.orm_models import UserORM
+    from backend.infrastructure.repositories import UserRepository
 
 
 class Role(StrEnum):
@@ -192,8 +198,8 @@ def _unauthorized() -> HTTPException:
 def verify_refresh_token(
     token: str,
     settings: Settings,
-    user_repository,
-):
+    user_repository: UserRepository,
+) -> UserORM:
     try:
         payload = jwt.decode(
             token,
@@ -252,7 +258,7 @@ def get_principal(
     return Principal(name=user.username, role=Role(user.role))
 
 
-def require_role(required: Role):
+def require_role(required: Role) -> Callable[..., Principal]:
     def dependency(principal: Principal = Depends(get_principal)) -> Principal:
         if not principal.has_at_least(required):
             raise HTTPException(

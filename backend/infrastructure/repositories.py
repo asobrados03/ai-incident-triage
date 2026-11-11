@@ -3,9 +3,10 @@ from datetime import UTC, datetime
 from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import case, delete, func, select
+from sqlalchemy import Delete, case, delete, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from backend.api.schemas import (
     AuditLogResponse,
@@ -28,6 +29,7 @@ from backend.domain.models import (
     IncidentSeverity,
     IncidentStatus,
 )
+from backend.infrastructure.database import Base
 from backend.infrastructure.orm_models import (
     AuditLogORM,
     IncidentORM,
@@ -317,7 +319,7 @@ class IncidentRepository:
         )
 
     @staticmethod
-    def _metric_value(record: TriageResultORM | TriageReviewORM, field: str):
+    def _metric_value(record: TriageResultORM | TriageReviewORM, field: str) -> Any:
         value = getattr(record, field)
         if field in {"affected_components", "missing_information"}:
             return frozenset(value or [])
@@ -657,13 +659,17 @@ class RetentionRepository:
         self._session.commit()
         return deleted
 
-    def _count(self, model, *conditions) -> int:
+    def _count(
+        self,
+        model: type[Base],
+        *conditions: ColumnElement[bool],
+    ) -> int:
         query = select(func.count()).select_from(model)
         if conditions:
             query = query.where(*conditions)
         return self._session.scalar(query) or 0
 
-    def _delete(self, statement) -> int:
+    def _delete(self, statement: Delete) -> int:
         result = cast(
             CursorResult[Any],
             self._session.execute(

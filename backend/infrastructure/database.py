@@ -1,6 +1,6 @@
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import Engine, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from backend.infrastructure.config import get_settings
@@ -10,7 +10,7 @@ class Base(DeclarativeBase):
     pass
 
 
-def create_database_engine(database_url: str | None = None):
+def create_database_engine(database_url: str | None = None) -> Engine:
     url = database_url or get_settings().database_url
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
     return create_engine(url, connect_args=connect_args)
@@ -20,7 +20,7 @@ engine = create_database_engine()
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
-def create_tables(database_engine=engine) -> None:
+def create_tables(database_engine: Engine = engine) -> None:
     # Import local para registrar los modelos en Base.metadata sin ciclos.
     from backend.infrastructure import orm_models  # noqa: F401
 
@@ -28,7 +28,7 @@ def create_tables(database_engine=engine) -> None:
     apply_lightweight_migrations(database_engine)
 
 
-def apply_lightweight_migrations(database_engine=engine) -> None:
+def apply_lightweight_migrations(database_engine: Engine = engine) -> None:
     """Añade columnas nuevas a bases SQLite ya existentes.
 
     El MVP no tiene migraciones versionadas; ``create_all`` no altera tablas

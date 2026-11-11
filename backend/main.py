@@ -1,4 +1,5 @@
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -36,7 +37,7 @@ def bootstrap_users() -> int:
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI):
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     validate_runtime_settings(settings)
     if settings.allow_anonymous_bootstrap:

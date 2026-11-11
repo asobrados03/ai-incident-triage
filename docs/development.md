@@ -130,7 +130,8 @@ npm run build
 ```
 
 - `python -m ruff check backend tests evaluation` ejecuta el lint de Python (configuración en `pyproject.toml`).
-- `python -m mypy` comprueba los tipos de `backend` y `evaluation`; el resto de opciones también está en `pyproject.toml`.
+- `python -m mypy` comprueba los tipos de `backend` y `evaluation` con `disallow_untyped_defs` y `warn_return_any`;
+  el resto de opciones también está en `pyproject.toml`.
 - `python -m pytest -q --cov --cov-report=term-missing` ejecuta la suite con cobertura de `backend` y `evaluation`. El
   umbral mínimo es **90%** (`fail_under`) y la configuración vive en `pyproject.toml`.
 - `npm run lint` ejecuta ESLint y `tsc -b` (type-check).

@@ -1,7 +1,8 @@
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
@@ -70,7 +71,10 @@ def mount_frontend(app: FastAPI, dist_dir: Path = FRONTEND_DIST) -> bool:
         app.mount("/assets", StaticFiles(directory=assets_dir), name="frontend-assets")
 
     @app.middleware("http")
-    async def spa_navigation(request: Request, call_next):
+    async def spa_navigation(
+        request: Request,
+        call_next: Callable[[Request], Awaitable[Response]],
+    ) -> Response:
         path = request.url.path
         accepts_html = "text/html" in request.headers.get("accept", "")
         if (

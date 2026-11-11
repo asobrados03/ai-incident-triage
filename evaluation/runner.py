@@ -348,9 +348,10 @@ def _accuracy(
     denominator: int,
 ) -> float:
     hits = sum(
-        outcome.actual is not None
-        and outcome.actual[field] == outcome.expected.get(field)
+        1
         for outcome in outcomes
+        if outcome.actual is not None
+        and outcome.actual[field] == outcome.expected.get(field)
     )
     return hits / denominator
 
