@@ -124,8 +124,8 @@ frontend** (7 archivos).
 
 ```powershell
 python -m pip install "ruff==0.17.4" "mypy==2.4.1"
-python -m ruff check backend tests evaluation
-python -m ruff format --check backend tests evaluation
+python -m ruff check backend evaluation
+python -m ruff format --check backend evaluation
 python -m mypy
 python -m pytest -q --cov --cov-report=term-missing
 Set-Location frontend
@@ -136,12 +136,15 @@ npm test -- --run
 npm run build
 ```
 
-- `python -m ruff check backend tests evaluation` ejecuta el lint de Python (configuración en `pyproject.toml`).
-- `python -m ruff format --check backend tests evaluation` comprueba el formato; para aplicarlo, quita `--check`.
+- `python -m ruff check backend evaluation` ejecuta el lint de Python (configuración en `pyproject.toml`).
+- `python -m ruff format --check backend evaluation` comprueba el formato; para aplicarlo, quita `--check`.
 - `python -m mypy` comprueba los tipos de `backend` y `evaluation` con `disallow_untyped_defs` y `warn_return_any`;
   el resto de opciones también está en `pyproject.toml`.
 - `python -m pytest -q --cov --cov-report=term-missing` ejecuta la suite con cobertura de `backend` y `evaluation`. El
   umbral mínimo es **90%** (`fail_under`) y la configuración vive en `pyproject.toml`.
+- Los tests viven en `backend/tests/`, junto al código que prueban, igual que en el frontend. Quedan fuera de la imagen
+  Docker (`.dockerignore`), de la distribución instalada (`setuptools`), de la cobertura (`omit`) y del type-check
+  (`mypy.exclude`).
 - `npm run lint` ejecuta ESLint y `tsc -b` (type-check).
 - `npm run format:check` comprueba el formato con Prettier.
 - `npm test -- --run` ejecuta Vitest en modo no interactivo.
@@ -217,9 +220,9 @@ GitHub Actions en `.github/workflows/ci.yml` separa dos jobs:
 
 ```text
 backend/            API FastAPI por capas (api, domain, services, infrastructure, analyzers, security)
+backend/tests/      Suite de pytest del backend, junto al código que prueba
 frontend/           Aplicación Vite + React + TypeScript
 evaluation/         runner.py, data/ y results/ para la evaluación offline
-tests/backend/      Suite de pytest del backend
 scripts/            Utilidades, incluida demo.ps1
 docs/               Esta documentación
 Dockerfile          Imagen multi-stage de API + frontend

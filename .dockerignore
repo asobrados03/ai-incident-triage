@@ -12,7 +12,7 @@ build/
 *.egg-info
 incidents.db
 incidents.db-*
-tests
+backend/tests
 evaluation
 frontend/node_modules
 frontend/dist

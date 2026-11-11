@@ -28,10 +28,12 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/backend"]
+testpaths = ["backend/tests"]
 
 [tool.coverage.run]
 source = ["backend", "evaluation"]
+# Los tests viven dentro de backend/; no son codigo medido.
+omit = ["*/tests/*"]
 
 [tool.coverage.report]
 fail_under = 90
@@ -55,6 +57,8 @@ known-first-party = ["backend", "evaluation"]
 [tool.mypy]
 python_version = "3.11"
 files = ["backend", "evaluation"]
+# Los tests no se type-checkean: la suite es dinamica y sin anotar.
+exclude = ["^backend/tests/"]
 check_untyped_defs = true
 disallow_untyped_defs = true
 warn_return_any = true
@@ -66,3 +70,5 @@ strict_equality = true
 
 [tool.setuptools.packages.find]
 include = ["backend*"]
+# Los tests nunca deben viajar en la distribucion instalada.
+exclude = ["backend.tests*"]
