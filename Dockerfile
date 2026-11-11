@@ -17,10 +17,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md requirements.lock ./
+
+RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock
+
 COPY backend ./backend
 
-RUN python -m pip install --no-cache-dir . \
+RUN python -m pip install --no-cache-dir --no-deps . \
     && rm -rf build *.egg-info \
     && groupadd --system --gid 10001 app \
     && useradd --system --uid 10001 --gid app --home-dir /app --shell /usr/sbin/nologin app \

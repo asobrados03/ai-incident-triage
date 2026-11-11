@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sistema-inteligente-de-triaje-de-incidencias"
 version = "0.1.0"
 description = "API base para la gestión de incidencias y su futuro triaje inteligente."
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "argon2-cffi>=23.1,<26.0",
     "fastapi>=0.115,<1.0",
