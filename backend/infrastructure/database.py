@@ -1,6 +1,7 @@
 from collections.abc import Generator
+from typing import Any
 
-from sqlalchemy import Engine, create_engine, inspect, text
+from sqlalchemy import Engine, create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from backend.infrastructure.config import get_settings
@@ -10,10 +11,23 @@ class Base(DeclarativeBase):
     pass
 
 
+def _enable_sqlite_foreign_keys(
+    dbapi_connection: Any,
+    connection_record: Any,
+) -> None:
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
+
 def create_database_engine(database_url: str | None = None) -> Engine:
     url = database_url or get_settings().database_url
-    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(url, connect_args=connect_args)
+    is_sqlite = url.startswith("sqlite")
+    connect_args = {"check_same_thread": False} if is_sqlite else {}
+    database_engine = create_engine(url, connect_args=connect_args)
+    if is_sqlite:
+        event.listen(database_engine, "connect", _enable_sqlite_foreign_keys)
+    return database_engine
 
 
 engine = create_database_engine()

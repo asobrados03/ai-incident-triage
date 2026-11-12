@@ -404,7 +404,8 @@ comandos de build, ejecución y variables están en [development.md](development
 ## Decisiones, costes y seguridad
 
 - **SQLite frente a PostgreSQL:** SQLite reduce fricción para el MVP; PostgreSQL será razonable cuando haya
-  concurrencia, despliegue multiinstancia o necesidad de operaciones gestionadas.
+  concurrencia, despliegue multiinstancia o necesidad de operaciones gestionadas. El engine activa
+  `PRAGMA foreign_keys=ON` en cada conexión SQLite, de modo que las claves foráneas declaradas se aplican.
 - **Ollama frente a carga directa Python:** Ollama aísla runtime/modelo, hardware y ciclo de vida; cargar
   `transformers`/`torch` dentro de FastAPI añadiría peso y complejidad innecesarios.
 - **FakeAnalyzer:** permite tests rápidos y reproducibles sin descargar modelos.
