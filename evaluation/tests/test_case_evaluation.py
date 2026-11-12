@@ -36,6 +36,40 @@ def test_evaluate_cases_reports_mismatches_per_case() -> None:
     assert outcome.actual["category"] == "feature"
 
 
+def test_missing_information_is_compared_as_a_set_and_serialized_sorted() -> None:
+    class PermutedAnalyzer:
+        def analyze(self, incident: IncidentCreate) -> TriageResult:
+            return TriageResult(
+                category="bug",
+                severity="medium",
+                priority="medium",
+                summary="Resultado fijo",
+                affected_components=[],
+                missing_information={"logs", "pasos", "entorno"},
+                justification="Resultado fijo para el test.",
+                confidence="high",
+            )
+
+    case = EvaluationCase(
+        id="permuted",
+        input=IncidentCreate(title="Fallo", description="Descripción"),
+        expected={
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": ["entorno", "logs", "pasos"],
+            "confidence": "high",
+        },
+    )
+
+    outcome = evaluate_cases(PermutedAnalyzer(), [case])[0]
+
+    assert outcome.valid is True
+    assert outcome.mismatches == ()
+    assert outcome.actual is not None
+    assert outcome.actual["missing_information"] == ["entorno", "logs", "pasos"]
+
+
 def test_evaluate_counts_invalid_results_as_errors() -> None:
     class BrokenAnalyzer:
         def analyze(self, incident: IncidentCreate) -> TriageResult:

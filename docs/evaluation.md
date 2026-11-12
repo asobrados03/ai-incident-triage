@@ -86,8 +86,9 @@ criticidad porque la regla solo reconoce “no disponible”, y un bug sin seña
 frente a `medium`. No se ajustaron las reglas después de ver ese resultado. En desarrollo, la confianza `medium` acierta
 2/2 y `high` 23/26; los tres desacuerdos son casos etiquetados como `medium` que el motor considera `high`.
 
-Un acierto de enum exige igualdad exacta. `missing_information` se sigue comparando como lista exacta para la accuracy,
-pero las métricas de precisión/recall/F1 permiten distinguir entre olvidar un concepto y añadir uno de más. `summary` y
+Un acierto de enum exige igualdad exacta. `missing_information` se compara como conjunto, porque el orden no
+forma parte del contrato; las métricas de precisión/recall/F1 permiten distinguir entre olvidar un concepto y añadir uno
+de más. `summary` y
 `justification` no se puntúan por similitud de texto libre.
 
 El 1.000 de desarrollo es optimista porque esas reglas se ajustaron con ese conjunto. Los holdouts tienen 12 casos: un

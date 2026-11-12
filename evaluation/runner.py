@@ -209,11 +209,13 @@ def evaluate_cases(
             "category": result.category.value,
             "severity": result.severity.value,
             "priority": result.priority.value,
-            "missing_information": list(result.missing_information),
+            "missing_information": sorted(result.missing_information),
             "confidence": result.confidence.value,
         }
         mismatches = tuple(
-            field for field in _SCORED_FIELDS if actual[field] != case.expected.get(field)
+            field
+            for field in _SCORED_FIELDS
+            if not _field_matches(field, actual[field], case.expected.get(field))
         )
         outcomes.append(
             CaseOutcome(
@@ -339,6 +341,19 @@ def _is_fully_correct(outcome: CaseOutcome) -> bool:
     return outcome.valid and not outcome.mismatches
 
 
+def _field_matches(field: str, actual: object, expected: object) -> bool:
+    """Compara un campo respetando su semántica de contrato.
+
+    `missing_information` es un conjunto: el orden no forma parte del contrato
+    y no debe alterar la métrica.
+    """
+    if field == "missing_information":
+        if not isinstance(actual, list) or not isinstance(expected, list):
+            return False
+        return set(actual) == set(expected)
+    return actual == expected
+
+
 def _accuracy(
     outcomes: list[CaseOutcome],
     field: str,
@@ -347,7 +362,8 @@ def _accuracy(
     hits = sum(
         1
         for outcome in outcomes
-        if outcome.actual is not None and outcome.actual[field] == outcome.expected.get(field)
+        if outcome.actual is not None
+        and _field_matches(field, outcome.actual[field], outcome.expected.get(field))
     )
     return hits / denominator
 

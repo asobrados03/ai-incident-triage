@@ -127,6 +127,48 @@ def test_errors_by_category_groups_failures_by_expected_category() -> None:
     assert metrics.errors_by_category == {"bug": 1}
 
 
+def test_missing_information_accuracy_ignores_expected_order() -> None:
+    class TwoItemsAnalyzer:
+        def analyze(self, incident: IncidentCreate) -> TriageResult:
+            return TriageResult(
+                category="bug",
+                severity="medium",
+                priority="medium",
+                summary="Resultado fijo",
+                affected_components=[],
+                missing_information={"entorno", "logs"},
+                justification="Resultado fijo para el test.",
+                confidence="high",
+            )
+
+    expected = {
+        "category": "bug",
+        "severity": "medium",
+        "priority": "medium",
+        "missing_information": ["entorno", "logs"],
+        "confidence": "high",
+    }
+    cases = [
+        EvaluationCase(
+            id="orden-directo",
+            input=IncidentCreate(title="Fallo", description="Descripción"),
+            expected=expected,
+        ),
+        EvaluationCase(
+            id="orden-inverso",
+            input=IncidentCreate(title="Fallo", description="Descripción"),
+            expected={**expected, "missing_information": ["logs", "entorno"]},
+        ),
+    ]
+
+    metrics = evaluate(TwoItemsAnalyzer(), cases)
+
+    assert metrics.missing_information_accuracy == 1
+    assert metrics.missing_information_precision == 1
+    assert metrics.missing_information_recall == 1
+    assert metrics.missing_information_f1 == 1
+
+
 def test_evaluate_empty_dataset_returns_zero_metrics() -> None:
     metrics = evaluate(FakeAnalyzer(), [])
 
