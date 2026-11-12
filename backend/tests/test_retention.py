@@ -258,3 +258,25 @@ def test_retention_rejects_non_positive_day_overrides(session: Session) -> None:
 def test_invalid_security_settings_are_rejected(settings: Settings) -> None:
     with pytest.raises(ValueError):
         validate_runtime_settings(settings)
+
+
+def test_audit_failure_does_not_block_retention(session: Session, caplog) -> None:
+    class FailingAuditRepository:
+        def record(self, **kwargs) -> None:
+            raise RuntimeError("audit storage unavailable")
+
+    seed(session)
+    service = RetentionService(
+        RetentionRepository(session),
+        FailingAuditRepository(),
+        incidents_days=90,
+        audit_days=365,
+    )
+
+    result = service.run(
+        actor=Principal(name="admin", role=Role.ADMIN),
+        dry_run=False,
+    )
+
+    assert result.incidents_matched == 1
+    assert sum(record.getMessage() == "audit_write_failed" for record in caplog.records) == 1

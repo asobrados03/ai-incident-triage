@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from backend.analyzers.core import AnalyzerProviderUnavailableError, FakeAnalyzer
 from backend.api.schemas import IncidentCreate, TriageReviewRequest
-from backend.domain.models import IncidentSeverity
+from backend.domain.models import IncidentSeverity, IncidentStatus
 from backend.infrastructure.database import Base
 from backend.infrastructure.repositories import AuditRepository, IncidentRepository
 from backend.security.auth import Principal, Role
@@ -73,6 +73,39 @@ def test_failed_analysis_is_audited_without_provider_details(session: Session) -
     assert failed.resource_id == str(created.id)
     assert failed.details["error_type"] == "AnalyzerProviderUnavailableError"
     assert "detalle-secreto-del-proveedor" not in json.dumps(failed.details)
+
+
+def test_audit_failure_does_not_break_the_incident_flow(
+    session: Session,
+    caplog,
+) -> None:
+    class FailingAuditRepository:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def record(self, **kwargs) -> None:
+            self.calls += 1
+            raise RuntimeError("audit storage unavailable")
+
+    audit_repository = FailingAuditRepository()
+    service = IncidentService(
+        IncidentRepository(session),
+        FakeAnalyzer(),
+        audit_repository,
+    )
+
+    created = service.create(incident(), actor=writer())
+    analyzed = service.analyze(created.id, actor=writer())
+    reviewed = service.review(
+        created.id,
+        TriageReviewRequest(review_comment="Aceptado."),
+        actor=writer(),
+    )
+
+    assert analyzed.status is IncidentStatus.ANALYZED
+    assert reviewed.status is IncidentStatus.REVIEWED
+    assert audit_repository.calls == 3
+    assert sum(record.getMessage() == "audit_write_failed" for record in caplog.records) == 3
 
 
 def test_review_audit_records_fields_but_not_comment_content(

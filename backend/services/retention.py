@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 
 from backend.api.schemas import RetentionRunResponse
@@ -9,6 +10,8 @@ from backend.infrastructure.config import get_settings, validate_runtime_setting
 from backend.infrastructure.database import SessionLocal, create_tables, engine
 from backend.infrastructure.repositories import AuditRepository, RetentionRepository
 from backend.security.auth import Principal, Role
+
+logger = logging.getLogger(__name__)
 
 
 class RetentionService:
@@ -66,20 +69,26 @@ class RetentionService:
             audit_logs_matched=audit_logs,
         )
 
-        self._audit_repository.record(
-            actor=actor,
-            action="retention.run",
-            resource_type="retention",
-            details={
-                "dry_run": dry_run,
-                "incident_cutoff": incident_cutoff.isoformat(),
-                "audit_cutoff": audit_cutoff.isoformat(),
-                "incidents_matched": result.incidents_matched,
-                "triage_results_matched": result.triage_results_matched,
-                "triage_reviews_matched": result.triage_reviews_matched,
-                "audit_logs_matched": result.audit_logs_matched,
-            },
-        )
+        try:
+            self._audit_repository.record(
+                actor=actor,
+                action="retention.run",
+                resource_type="retention",
+                details={
+                    "dry_run": dry_run,
+                    "incident_cutoff": incident_cutoff.isoformat(),
+                    "audit_cutoff": audit_cutoff.isoformat(),
+                    "incidents_matched": result.incidents_matched,
+                    "triage_results_matched": result.triage_results_matched,
+                    "triage_reviews_matched": result.triage_reviews_matched,
+                    "audit_logs_matched": result.audit_logs_matched,
+                },
+            )
+        except Exception:
+            logger.exception(
+                "audit_write_failed",
+                extra={"resource_type": "retention"},
+            )
         return result
 
 

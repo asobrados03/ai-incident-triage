@@ -153,3 +153,24 @@ def test_lightweight_migration_adds_checklist_to_legacy_database(
     columns = {column["name"] for column in inspect(database_engine).get_columns("triage_reviews")}
     assert "review_checklist" in columns
     database_engine.dispose()
+
+
+def test_audit_failure_does_not_block_user_creation(session: Session, caplog) -> None:
+    class FailingAuditRepository:
+        def record(self, **kwargs) -> None:
+            raise RuntimeError("audit storage unavailable")
+
+    service = UserService(UserRepository(session), FailingAuditRepository())
+
+    created = service.create(
+        UserCreate(
+            username="nuevo.soporte",
+            password="nuevo-password-0123456789",
+            role=Role.WRITER,
+        ),
+        Principal(name="admin", role=Role.ADMIN),
+    )
+
+    assert created.username == "nuevo.soporte"
+    assert UserRepository(session).get_by_username("nuevo.soporte") is not None
+    assert sum(record.getMessage() == "audit_write_failed" for record in caplog.records) == 1

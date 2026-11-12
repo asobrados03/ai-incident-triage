@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -12,6 +13,8 @@ from backend.security.auth import (
     hash_password,
     verify_password,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class UserNotFoundError(Exception):
@@ -56,7 +59,7 @@ class UserService:
                 ),
             )
         if created:
-            self._record_audit(
+            self._record_audit_safely(
                 Principal.system(),
                 "user.bootstrap",
                 None,
@@ -96,7 +99,7 @@ class UserService:
         if record is None:
             return False
         self._repository.revoke_tokens(record)
-        self._record_audit(
+        self._record_audit_safely(
             principal,
             "user.logout",
             record.id,
@@ -122,7 +125,7 @@ class UserService:
             password_hash=hash_password(data.password),
             role=data.role,
         )
-        self._record_audit(
+        self._record_audit_safely(
             actor,
             "user.create",
             record.id,
@@ -170,11 +173,26 @@ class UserService:
             details["active"] = data.active
         if data.password is not None:
             details["password_changed"] = True
-        self._record_audit(actor, "user.update", record.id, details)
+        self._record_audit_safely(actor, "user.update", record.id, details)
         return self._repository.to_response(record)
 
     def deactivate(self, user_id: UUID, actor: Principal) -> UserResponse:
         return self.update(user_id, UserUpdate(active=False), actor)
+
+    def _record_audit_safely(
+        self,
+        actor: Principal,
+        action: str,
+        user_id: str | None,
+        details: dict,
+    ) -> None:
+        try:
+            self._record_audit(actor, action, user_id, details)
+        except Exception:
+            logger.exception(
+                "audit_write_failed",
+                extra={"resource_type": "user", "resource_id": user_id},
+            )
 
     def _record_audit(
         self,

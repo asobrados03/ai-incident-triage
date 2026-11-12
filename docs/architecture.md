@@ -421,8 +421,9 @@ comandos de build, ejecución y variables están en [development.md](development
 - **UI por rol:** el frontend consulta `/auth/me`; `reader` no ve acciones de escritura y solo `admin` ve Usuarios. El
   detalle muestra un diff IA→humano con los campos modificados y la checklist persistida.
 - **Auditoría:** `audit_logs` registra actor, rol, acción, recurso y metadatos operativos. Se evita guardar texto libre
-  de incidencias, comentarios, prompts o claves. Si la escritura de auditoría falla durante un análisis, el error
-  original se conserva y el fallo de auditoría se registra en el log.
+  de incidencias, comentarios, prompts o claves. La escritura es best-effort y no comparte transacción con la operación:
+  si falla, la operación ya confirmada no se revierte y el fallo de auditoría se registra en el log. No es un sumidero
+  inmutable externo.
 - **Retención:** los cortes se calculan en UTC, la purga es explícita, auditable y hace dry-run por defecto; no se
   borra por estado ni por contenido. La API y la CLI comparten el mismo servicio.
 - **Coste:** FakeAnalyzer + SQLite no requieren servicios externos; Ollama consume CPU/GPU, memoria, almacenamiento y

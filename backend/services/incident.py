@@ -47,7 +47,7 @@ class IncidentService:
             **data.model_dump(),
         )
         created = self._repository.create(incident)
-        self._record_audit(
+        self._record_audit_safely(
             actor,
             "incident.create",
             created.id,
@@ -99,7 +99,7 @@ class IncidentService:
                 "duration_ms": duration_ms,
             },
         )
-        self._record_audit(
+        self._record_audit_safely(
             actor,
             "incident.analyze",
             incident_id,
@@ -185,7 +185,7 @@ class IncidentService:
                 proposed = set(proposed or [])
             if value != proposed:
                 changed_fields.append(key)
-        self._record_audit(
+        self._record_audit_safely(
             actor,
             "incident.review",
             incident_id,
