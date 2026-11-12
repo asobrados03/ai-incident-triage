@@ -75,35 +75,17 @@ class IncidentService:
             raise IncidentAnalysisConflictError(
                 f"Incident cannot be analyzed from status {incident.status.value}",
             )
+        if not self._repository.claim_for_analysis(incident_id):
+            raise IncidentAnalysisConflictError("Incident is already being analyzed")
 
-        self._repository.set_status(incident_id, IncidentStatus.ANALYZING)
         try:
             result = self._analyzer.analyze(incident)
-            self._repository.create_triage(incident_id, result)
-            self._repository.set_status(incident_id, IncidentStatus.ANALYZED)
+            completed = self._repository.complete_analysis(incident_id, result)
         except Exception as error:
-            self._repository.set_status(incident_id, IncidentStatus.ANALYSIS_FAILED)
-            duration_ms = round((perf_counter() - started) * 1000, 2)
-            logger.error(
-                "incident_analysis_failed",
-                extra={
-                    "incident_id": str(incident_id),
-                    "status": IncidentStatus.ANALYSIS_FAILED.value,
-                    "duration_ms": duration_ms,
-                    "error_type": "analyzer_error",
-                },
-            )
-            self._record_audit_safely(
-                actor,
-                "incident.analysis_failed",
-                incident_id,
-                {
-                    "status": IncidentStatus.ANALYSIS_FAILED.value,
-                    "duration_ms": duration_ms,
-                    "error_type": type(error).__name__,
-                },
-            )
+            self._handle_analysis_failure(actor, incident_id, started, error)
             raise
+        if not completed:
+            raise IncidentAnalysisConflictError("Incident is no longer analyzable")
 
         analyzed = self._repository.get(incident_id)
         if analyzed is None:
@@ -128,6 +110,41 @@ class IncidentService:
         )
         return analyzed
 
+    def _handle_analysis_failure(
+        self,
+        actor: Principal | None,
+        incident_id: UUID,
+        started: float,
+        error: Exception,
+    ) -> None:
+        try:
+            self._repository.mark_analysis_failed(incident_id)
+        except Exception:
+            logger.exception(
+                "incident_analysis_status_failed",
+                extra={"incident_id": str(incident_id)},
+            )
+        duration_ms = round((perf_counter() - started) * 1000, 2)
+        logger.error(
+            "incident_analysis_failed",
+            extra={
+                "incident_id": str(incident_id),
+                "status": IncidentStatus.ANALYSIS_FAILED.value,
+                "duration_ms": duration_ms,
+                "error_type": "analyzer_error",
+            },
+        )
+        self._record_audit_safely(
+            actor,
+            "incident.analysis_failed",
+            incident_id,
+            {
+                "status": IncidentStatus.ANALYSIS_FAILED.value,
+                "duration_ms": duration_ms,
+                "error_type": type(error).__name__,
+            },
+        )
+
     def review(
         self,
         incident_id: UUID,
@@ -141,9 +158,12 @@ class IncidentService:
             raise IncidentReviewConflictError("Incident has already been reviewed")
         if incident.triage is None:
             raise IncidentReviewConflictError("Incident has no triage result")
-
-        self._repository.create_review(incident_id, review)
-        self._repository.set_status(incident_id, IncidentStatus.REVIEWED)
+        if incident.status is not IncidentStatus.ANALYZED:
+            raise IncidentReviewConflictError(
+                f"Incident cannot be reviewed from status {incident.status.value}",
+            )
+        if not self._repository.save_review(incident_id, review):
+            raise IncidentReviewConflictError("Incident is no longer reviewable")
         reviewed = self._repository.get(incident_id)
         if reviewed is None:
             raise IncidentNotFoundError

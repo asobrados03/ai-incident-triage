@@ -224,6 +224,11 @@ La respuesta `200` contiene `status: "analyzed"` y `triage` con: `category` (`bu
 `urgent`), `summary`, `affected_components`, `missing_information`, `justification` y `confidence` (`low`, `medium`,
 `high`). Un segundo análisis desde `analyzed` devuelve `409`; si el estado es `analysis_failed`, se permite reintentar.
 
+La transición a `analyzing` es un `UPDATE` condicional atómico: si dos peticiones compiten, solo una reclama la
+incidencia y la otra recibe `409`. El triaje y el estado `analyzed` se guardan en la misma transacción. Si ya existía un
+triaje de un intento anterior, se actualiza en lugar de violar el `unique`, de modo que un fallo entre ambas escrituras
+no deja la incidencia atascada. El fallo solo se marca si el análisis sigue en curso.
+
 ### Revisar — `PATCH /incidents/{incident_id}/triage`
 
 ```powershell
@@ -235,8 +240,9 @@ curl.exe -i -X PATCH http://127.0.0.1:8000/incidents/{incident_id}/triage `
 La respuesta `200` cambia el estado a `reviewed`. `triage` sigue siendo la propuesta original y `triage.review.final`
 contiene los valores finales, con `reviewed: true`, `source: "human"`, comentario, `review_checklist`, timestamp y los
 campos corregidos. Un comentario solo acepta la propuesta sin cambios. Una petición vacía, una incidencia sin análisis
-o una revisión duplicada devuelve `422`/`409` según el caso. La checklist acepta hasta 20 elementos de 1–200 caracteres
-y se persiste en `triage_reviews.review_checklist`.
+o una revisión duplicada devuelve `422`/`409` según el caso. Solo se revisa desde `analyzed`: la transición a `reviewed`
+y la inserción de la revisión comparten transacción, por lo que dos revisiones concurrentes no pueden persistir ambas.
+La checklist acepta hasta 20 elementos de 1–200 caracteres y se persiste en `triage_reviews.review_checklist`.
 
 Límites relevantes: título 1–200 caracteres, descripción 1–5000, comentarios 2000, componentes y listas de triaje
 máximo 20 elementos. Los campos desconocidos se rechazan. Si la autenticación está activa, añade la cabecera

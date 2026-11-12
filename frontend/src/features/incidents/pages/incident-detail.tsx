@@ -244,7 +244,7 @@ export function IncidentDetailPage() {
 
       {review && <ReviewSummary review={review} />}
 
-      {canWrite && incident.triage && !review && (
+      {canWrite && incident.status === "analyzed" && incident.triage && !review && (
         <ReviewForm
           incident={incident}
           onSuccess={(updated) => queryClient.setQueryData(["incident", id], updated)}

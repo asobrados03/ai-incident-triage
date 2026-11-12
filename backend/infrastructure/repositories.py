@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
-from sqlalchemy import Delete, case, delete, func, select
+from sqlalchemy import Delete, case, delete, func, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
@@ -363,17 +363,87 @@ class IncidentRepository:
             triage=triage,
         )
 
-    def get_status(self, incident_id: UUID) -> IncidentStatus | None:
-        value = self._session.scalar(
-            select(IncidentORM.status).where(IncidentORM.id == str(incident_id)),
-        )
-        return IncidentStatus(value) if value is not None else None
+    def claim_for_analysis(self, incident_id: UUID) -> bool:
+        """Mueve a `analyzing` solo si la incidencia admite un nuevo análisis.
 
-    def set_status(self, incident_id: UUID, incident_status: IncidentStatus) -> None:
-        record = self._session.get(IncidentORM, str(incident_id))
+        El `UPDATE` condicional es la unidad de exclusión: dos peticiones
+        concurrentes no pueden reclamar la misma incidencia.
+        """
+        result = cast(
+            CursorResult[Any],
+            self._session.execute(
+                update(IncidentORM)
+                .where(
+                    IncidentORM.id == str(incident_id),
+                    IncidentORM.status.in_(
+                        (
+                            IncidentStatus.CREATED.value,
+                            IncidentStatus.ANALYSIS_FAILED.value,
+                        ),
+                    ),
+                )
+                .values(status=IncidentStatus.ANALYZING.value),
+            ),
+        )
+        self._session.commit()
+        return result.rowcount == 1
+
+    def complete_analysis(self, incident_id: UUID, result: TriageResult) -> bool:
+        """Guarda el triaje y marca `analyzed` en una sola transacción.
+
+        Si ya existe un triaje (por ejemplo, tras un fallo entre la inserción y
+        el cambio de estado), se actualiza en lugar de violar el `unique`.
+        """
+        values = result.model_dump(mode="json")
+        record = self._session.scalar(
+            select(TriageResultORM).where(
+                TriageResultORM.incident_id == str(incident_id),
+            ),
+        )
         if record is None:
-            return
-        record.status = incident_status.value
+            self._session.add(
+                TriageResultORM(
+                    id=str(uuid4()),
+                    incident_id=str(incident_id),
+                    created_at=datetime.now(UTC),
+                    **values,
+                ),
+            )
+        else:
+            for field, value in values.items():
+                setattr(record, field, value)
+
+        claimed = cast(
+            CursorResult[Any],
+            self._session.execute(
+                update(IncidentORM)
+                .where(
+                    IncidentORM.id == str(incident_id),
+                    IncidentORM.status == IncidentStatus.ANALYZING.value,
+                )
+                .values(status=IncidentStatus.ANALYZED.value),
+            ),
+        )
+        if claimed.rowcount != 1:
+            self._session.rollback()
+            return False
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        return True
+
+    def mark_analysis_failed(self, incident_id: UUID) -> None:
+        """Marca el fallo solo si el análisis sigue en curso."""
+        self._session.execute(
+            update(IncidentORM)
+            .where(
+                IncidentORM.id == str(incident_id),
+                IncidentORM.status == IncidentStatus.ANALYZING.value,
+            )
+            .values(status=IncidentStatus.ANALYSIS_FAILED.value),
+        )
         self._session.commit()
 
     def get_triage(self, incident_id: UUID) -> TriageResultResponse | None:
@@ -408,22 +478,6 @@ class IncidentRepository:
             select(TriageReviewORM).where(TriageReviewORM.triage_id == triage_id),
         )
 
-    def create_triage(
-        self,
-        incident_id: UUID,
-        result: TriageResult,
-    ) -> TriageResultResponse:
-        record = TriageResultORM(
-            id=str(uuid4()),
-            incident_id=str(incident_id),
-            created_at=datetime.now(UTC),
-            **result.model_dump(mode="json"),
-        )
-        self._session.add(record)
-        self._session.commit()
-        self._session.refresh(record)
-        return self._to_triage_response(record)
-
     @staticmethod
     def _to_triage_response(record: TriageResultORM) -> TriageResultResponse:
         return TriageResultResponse(
@@ -439,18 +493,43 @@ class IncidentRepository:
             created_at=record.created_at,
         )
 
-    def create_review(
+    def save_review(
         self,
         incident_id: UUID,
         review: TriageReviewRequest,
-    ) -> None:
+    ) -> bool:
+        """Registra la revisión y marca `reviewed` de forma atómica.
+
+        Solo se revisa desde `analyzed`. Si dos revisiones compiten, la segunda
+        no encuentra la transición y devuelve `False` sin escribir nada.
+        """
         triage = self._session.scalar(
             select(TriageResultORM).where(
                 TriageResultORM.incident_id == str(incident_id),
             ),
         )
         if triage is None:
-            return
+            return False
+        existing_review = self._session.scalar(
+            select(TriageReviewORM.id).where(TriageReviewORM.triage_id == triage.id),
+        )
+        if existing_review is not None:
+            return False
+
+        claimed = cast(
+            CursorResult[Any],
+            self._session.execute(
+                update(IncidentORM)
+                .where(
+                    IncidentORM.id == str(incident_id),
+                    IncidentORM.status == IncidentStatus.ANALYZED.value,
+                )
+                .values(status=IncidentStatus.REVIEWED.value),
+            ),
+        )
+        if claimed.rowcount != 1:
+            self._session.rollback()
+            return False
 
         values = {
             "category": triage.category,
@@ -481,7 +560,12 @@ class IncidentRepository:
             **values,
         )
         self._session.add(record)
-        self._session.commit()
+        try:
+            self._session.commit()
+        except Exception:
+            self._session.rollback()
+            raise
+        return True
 
     @staticmethod
     def _to_review_response(record: TriageReviewORM) -> TriageReviewResponse:
