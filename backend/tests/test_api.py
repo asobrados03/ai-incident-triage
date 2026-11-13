@@ -291,6 +291,32 @@ def test_create_incident_rejects_too_many_components(client: SyncASGIClient) -> 
     assert response.status_code == 422
 
 
+def test_create_incident_rejects_oversized_component(client: SyncASGIClient) -> None:
+    response = client.post(
+        "/incidents",
+        json={
+            "title": "Fallo",
+            "description": "Descripción.",
+            "components": ["x" * 201],
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_create_incident_rejects_empty_component(client: SyncASGIClient) -> None:
+    response = client.post(
+        "/incidents",
+        json={
+            "title": "Fallo",
+            "description": "Descripción.",
+            "components": [""],
+        },
+    )
+
+    assert response.status_code == 422
+
+
 def test_create_incident_rejects_unknown_fields(client: SyncASGIClient) -> None:
     response = client.post(
         "/incidents",
@@ -685,6 +711,28 @@ def test_review_audit_only_lists_fields_that_actually_changed(
     assert details["changed_fields"] == []
     assert details["has_comment"] is False
     assert details["checklist_items"] == 0
+
+
+def test_review_rejects_oversized_component_set(client: SyncASGIClient) -> None:
+    incident_id = create_analyzed_incident(client)
+
+    response = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={"affected_components": [f"component-{index}" for index in range(21)]},
+    )
+
+    assert response.status_code == 422
+
+
+def test_review_rejects_oversized_component_name(client: SyncASGIClient) -> None:
+    incident_id = create_analyzed_incident(client)
+
+    response = client.patch(
+        f"/incidents/{incident_id}/triage",
+        json={"missing_information": ["x" * 201]},
+    )
+
+    assert response.status_code == 422
 
 
 def test_review_rejects_oversized_checklist(client: SyncASGIClient) -> None:

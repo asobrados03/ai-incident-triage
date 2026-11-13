@@ -245,8 +245,8 @@ y la inserción de la revisión comparten transacción, por lo que dos revisione
 La checklist acepta hasta 20 elementos de 1–200 caracteres y se persiste en `triage_reviews.review_checklist`.
 
 Límites relevantes: título 1–200 caracteres, descripción 1–5000, comentarios 2000, componentes y listas de triaje
-máximo 20 elementos. Los campos desconocidos se rechazan. Si la autenticación está activa, añade la cabecera
-`Authorization: Bearer <token>` a todas las peticiones salvo `GET /health`.
+máximo 20 elementos, y cada elemento 1–200 caracteres. Los campos desconocidos se rechazan. Si la autenticación está
+activa, añade la cabecera `Authorization: Bearer <token>` a todas las peticiones salvo `GET /health`.
 
 `affected_components` y `missing_information` se tratan como conjuntos: el orden de sus elementos no forma parte del
 contrato y los duplicados se eliminan durante la validación. `summary` y `justification` se conservan como texto

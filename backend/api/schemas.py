@@ -13,6 +13,8 @@ from backend.domain.models import (
 )
 from backend.security.auth import Role
 
+ComponentName = Annotated[str, Field(min_length=1, max_length=200)]
+
 
 class IncidentCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -23,7 +25,7 @@ class IncidentCreate(BaseModel):
     expected_behavior: str | None = Field(default=None, max_length=2000)
     actual_behavior: str | None = Field(default=None, max_length=2000)
     environment: str | None = Field(default=None, max_length=1000)
-    components: list[str] | None = Field(default=None, max_length=20)
+    components: list[ComponentName] | None = Field(default=None, max_length=20)
 
 
 class LoginRequest(BaseModel):
@@ -112,8 +114,8 @@ class TriageResult(BaseModel):
     severity: IncidentSeverity
     priority: IncidentPriority
     summary: str = Field(min_length=1, max_length=1000)
-    affected_components: set[str] = Field(default_factory=set, max_length=20)
-    missing_information: set[str] = Field(default_factory=set, max_length=20)
+    affected_components: set[ComponentName] = Field(default_factory=set, max_length=20)
+    missing_information: set[ComponentName] = Field(default_factory=set, max_length=20)
     justification: str = Field(min_length=1, max_length=2000)
     confidence: AnalysisConfidence
 
@@ -125,8 +127,8 @@ class TriageReviewRequest(BaseModel):
     severity: IncidentSeverity | None = None
     priority: IncidentPriority | None = None
     summary: str | None = Field(default=None, min_length=1, max_length=1000)
-    affected_components: set[str] | None = None
-    missing_information: set[str] | None = None
+    affected_components: set[ComponentName] | None = Field(default=None, max_length=20)
+    missing_information: set[ComponentName] | None = Field(default=None, max_length=20)
     justification: str | None = Field(default=None, min_length=1, max_length=2000)
     confidence: AnalysisConfidence | None = None
     review_comment: str | None = Field(default=None, max_length=2000)
