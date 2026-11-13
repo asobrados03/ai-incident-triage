@@ -52,7 +52,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     create_tables(engine)
     created = bootstrap_users()
     if created:
-        logger.info("auth_users_bootstrapped", extra={"created": created})
+        logger.info("auth_users_bootstrapped", extra={"users_created": created})
     yield
 
 
