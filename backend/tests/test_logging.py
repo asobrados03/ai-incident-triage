@@ -49,8 +49,7 @@ def test_lifespan_bootstrap_log_uses_a_non_reserved_field(monkeypatch, caplog) -
     records = [
         record
         for record in caplog.records
-        if record.name == "backend.main"
-        and record.getMessage() == "auth_users_bootstrapped"
+        if record.name == "backend.main" and record.getMessage() == "auth_users_bootstrapped"
     ]
     assert len(records) == 1
     assert records[0].users_created == 1
