@@ -121,8 +121,8 @@ vacía. El comportamiento de autenticación, roles y revocación se detalla en
 
 ## Tests y validaciones
 
-La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **151 tests backend** (131 en
-`backend/tests` y 20 en `evaluation/tests`) y **37 tests frontend** (7 archivos).
+La suite usa el backend determinista y no realiza llamadas a Ollama. Estado actual: **192 tests backend** (159 en
+`backend/tests` y 33 en `evaluation/tests`) y **37 tests frontend** (7 archivos).
 
 ```powershell
 python -m pip install "ruff==0.17.4" "mypy==2.4.1"
