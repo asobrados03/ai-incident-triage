@@ -20,6 +20,11 @@ Hay varios conjuntos con propósitos distintos:
 - `evaluation/data/incidents-holdout-v2.json`: 12 casos escritos después de los cambios y ejecutados una sola vez. Es la
   referencia más honesta de generalización de esta iteración.
 
+`load_dataset` valida el fichero antes de puntuar: rechaza arrays vacíos, IDs duplicados y etiquetas que no tengan
+exactamente las cinco claves `category`, `severity`, `priority`, `missing_information` y `confidence`, con enums válidos
+y `missing_information` como lista de strings únicos. Un dataset mal formado falla al cargarse en lugar de contarse como
+fallo del analizador.
+
 ## Comandos
 
 ```powershell

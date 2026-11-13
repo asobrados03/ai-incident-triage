@@ -1,12 +1,34 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from evaluation.runner import (
     DEFAULT_HOLDOUT_DATASET,
     DEFAULT_HOLDOUT_V2_DATASET,
     DEFAULT_REGRESSION_DATASET,
     load_dataset,
 )
+
+
+def valid_case(case_id: str = "case-1") -> dict:
+    return {
+        "id": case_id,
+        "input": {"title": "Fallo", "description": "No funciona."},
+        "expected": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": ["logs"],
+            "confidence": "high",
+        },
+    }
+
+
+def write_dataset(tmp_path: Path, raw: object) -> Path:
+    path = tmp_path / "dataset.json"
+    path.write_text(json.dumps(raw), encoding="utf-8")
+    return path
 
 
 def test_load_reference_dataset_has_balanced_cases() -> None:
@@ -95,8 +117,7 @@ def test_blind_holdout_covers_every_category_and_severity() -> None:
 
 
 def test_load_dataset_rejects_non_array(tmp_path: Path) -> None:
-    path = tmp_path / "invalid.json"
-    path.write_text(json.dumps({"id": "not-a-list"}), encoding="utf-8")
+    path = write_dataset(tmp_path, {"id": "not-a-list"})
 
     try:
         load_dataset(path)
@@ -104,3 +125,72 @@ def test_load_dataset_rejects_non_array(tmp_path: Path) -> None:
         assert "JSON array" in str(error)
     else:
         raise AssertionError("Expected ValueError")
+
+
+def test_load_dataset_rejects_empty_dataset(tmp_path: Path) -> None:
+    path = write_dataset(tmp_path, [])
+
+    with pytest.raises(ValueError, match="at least one case"):
+        load_dataset(path)
+
+
+def test_load_dataset_rejects_duplicate_ids(tmp_path: Path) -> None:
+    path = write_dataset(tmp_path, [valid_case("repetido"), valid_case("repetido")])
+
+    with pytest.raises(ValueError, match="duplicate ids"):
+        load_dataset(path)
+
+
+def test_load_dataset_rejects_unknown_expected_keys(tmp_path: Path) -> None:
+    case = valid_case()
+    case["expected"]["impact"] = "high"
+    path = write_dataset(tmp_path, [case])
+
+    with pytest.raises(ValueError, match="expected must contain exactly"):
+        load_dataset(path)
+
+
+def test_load_dataset_rejects_missing_expected_keys(tmp_path: Path) -> None:
+    case = valid_case()
+    del case["expected"]["confidence"]
+    path = write_dataset(tmp_path, [case])
+
+    with pytest.raises(ValueError, match="expected must contain exactly"):
+        load_dataset(path)
+
+
+@pytest.mark.parametrize("field", ["category", "severity", "priority", "confidence"])
+def test_load_dataset_rejects_invalid_enums(tmp_path: Path, field: str) -> None:
+    case = valid_case()
+    case["expected"][field] = "not-a-valid-value"
+    path = write_dataset(tmp_path, [case])
+
+    with pytest.raises(ValueError, match=f"expected.{field} must be one of"):
+        load_dataset(path)
+
+
+def test_load_dataset_rejects_non_list_missing_information(tmp_path: Path) -> None:
+    case = valid_case()
+    case["expected"]["missing_information"] = "logs"
+    path = write_dataset(tmp_path, [case])
+
+    with pytest.raises(ValueError, match="list of non-empty strings"):
+        load_dataset(path)
+
+
+def test_load_dataset_rejects_empty_missing_information_items(tmp_path: Path) -> None:
+    case = valid_case()
+    case["expected"]["missing_information"] = ["logs", ""]
+    path = write_dataset(tmp_path, [case])
+
+    with pytest.raises(ValueError, match="list of non-empty strings"):
+        load_dataset(path)
+
+
+def test_load_dataset_rejects_duplicate_missing_information(tmp_path: Path) -> None:
+    case = valid_case()
+    case["expected"]["missing_information"] = ["logs", "logs"]
+    path = write_dataset(tmp_path, [case])
+
+    with pytest.raises(ValueError, match="must not contain duplicates"):
+        load_dataset(path)

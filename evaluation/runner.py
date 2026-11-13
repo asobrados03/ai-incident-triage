@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.analyzers.core import FakeAnalyzer, IncidentAnalyzer, OllamaAnalyzer
 from backend.api.schemas import IncidentCreate, TriageResult
@@ -46,9 +46,39 @@ _SCORED_FIELDS = (
 class EvaluationCase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    id: str
+    id: str = Field(min_length=1)
     input: IncidentCreate
     expected: dict[str, Any]
+
+    @field_validator("expected")
+    @classmethod
+    def validate_expected(cls, value: dict[str, Any]) -> dict[str, Any]:
+        """Comprueba que la etiqueta tiene la forma exacta que consume el runner.
+
+        Un typo en una clave o un enum inválido se contaría como fallo del
+        analizador; es preferible rechazar el dataset al cargarlo.
+        """
+        keys = set(value)
+        if keys != set(_SCORED_FIELDS):
+            missing = sorted(set(_SCORED_FIELDS) - keys)
+            extra = sorted(keys - set(_SCORED_FIELDS))
+            raise ValueError(
+                f"expected must contain exactly {sorted(_SCORED_FIELDS)}; "
+                f"missing={missing} extra={extra}",
+            )
+        for field, allowed in _ENUM_FIELDS.items():
+            if value[field] not in allowed:
+                raise ValueError(f"expected.{field} must be one of {list(allowed)}")
+        missing_information = value["missing_information"]
+        if not isinstance(missing_information, list) or not all(
+            isinstance(item, str) and item for item in missing_information
+        ):
+            raise ValueError(
+                "expected.missing_information must be a list of non-empty strings",
+            )
+        if len(set(missing_information)) != len(missing_information):
+            raise ValueError("expected.missing_information must not contain duplicates")
+        return value
 
 
 @dataclass(frozen=True)
@@ -179,7 +209,14 @@ def load_dataset(path: Path = DEFAULT_DATASET) -> list[EvaluationCase]:
         raw_cases = json.load(file)
     if not isinstance(raw_cases, list):
         raise ValueError("Evaluation dataset must contain a JSON array")
-    return [EvaluationCase.model_validate(case) for case in raw_cases]
+    if not raw_cases:
+        raise ValueError("Evaluation dataset must contain at least one case")
+    cases = [EvaluationCase.model_validate(case) for case in raw_cases]
+    ids = [case.id for case in cases]
+    duplicates = sorted({case_id for case_id in ids if ids.count(case_id) > 1})
+    if duplicates:
+        raise ValueError(f"Evaluation dataset contains duplicate ids: {duplicates}")
+    return cases
 
 
 def evaluate_cases(
