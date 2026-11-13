@@ -417,7 +417,9 @@ comandos de build, ejecución y variables están en [development.md](development
   contraseñas usan Argon2id con salt único y nunca se devuelven, registran ni auditan. Los JWT incluyen `ver`, expiran y
   se revalidan contra la BD en cada petición, por lo que cambiar contraseña o desactivar una cuenta revoca el acceso.
   Los roles son jerárquicos, el CRUD de usuarios es solo para `admin` y hay guardas para no quedarse sin administrador
-  activo. Sin `AUTH_USERS` ni usuarios la API responde `401` (fail-closed); el bootstrap anónimo es opt-in.
+  activo. El login limita los intentos fallidos por usuario e IP dentro de una ventana fija y responde `429` con
+  `Retry-After`; el contador es por proceso y se reinicia con un login correcto. Sin `AUTH_USERS` ni usuarios la API
+  responde `401` (fail-closed); el bootstrap anónimo es opt-in.
 - **UI por rol:** el frontend consulta `/auth/me`; `reader` no ve acciones de escritura y solo `admin` ve Usuarios. El
   detalle muestra un diff IA→humano con los campos modificados y la checklist persistida.
 - **Auditoría:** `audit_logs` registra actor, rol, acción, recurso y metadatos operativos. Se evita guardar texto libre
@@ -455,8 +457,10 @@ Las limitaciones de calidad del análisis y de los conjuntos de evaluación est�
   necesitará PostgreSQL, migraciones versionadas, copias de seguridad verificadas, restauración probada y una
   estrategia para concurrencia y observabilidad. La auditoría comparte la misma base de datos y no es un sumidero
   inmutable externo.
-- **Autenticación y exposición de la API:** ya existe CRUD de usuarios, Argon2id y revocación por `token_version`, pero
-  faltan rate limiting, bloqueo por intentos fallidos, MFA, rotación de `JWT_SECRET`, recuperación de contraseña,
+- **Autenticación y exposición de la API:** ya existe CRUD de usuarios, Argon2id, revocación por `token_version` y un
+  limitador de intentos fallidos de login por usuario e IP (`LOGIN_MAX_ATTEMPTS` / `LOGIN_WINDOW_SECONDS`). Ese
+  limitador vive en memoria y solo protege un proceso; con varios workers o instancias hace falta un almacén compartido
+  o aplicarlo en el proxy. Faltan bloqueo de cuenta, MFA, rotación de `JWT_SECRET`, recuperación de contraseña,
   gestión centralizada de secretos, TLS en un proxy y una política de sesiones más completa. La autenticación
   deshabilitada por defecto debe mantenerse limitada a desarrollo local y tests. La migración de columnas aditivas es
   deliberadamente ligera: un despliegue real necesita migraciones versionadas.

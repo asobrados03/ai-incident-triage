@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     retention_days: int = 90
     audit_retention_days: int = 365
+    login_max_attempts: int = 5
+    login_window_seconds: float = 300.0
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -58,6 +60,10 @@ def validate_runtime_settings(settings: Settings) -> None:
         raise ValueError("JWT_EXPIRATION_MINUTES must be greater than zero")
     if settings.refresh_token_expiration_days <= 0:
         raise ValueError("REFRESH_TOKEN_EXPIRATION_DAYS must be greater than zero")
+    if settings.login_max_attempts <= 0:
+        raise ValueError("LOGIN_MAX_ATTEMPTS must be greater than zero")
+    if settings.login_window_seconds <= 0:
+        raise ValueError("LOGIN_WINDOW_SECONDS must be greater than zero")
     if (
         settings.auth_users.get_secret_value().strip()
         and len(

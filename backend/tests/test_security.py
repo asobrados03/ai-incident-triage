@@ -344,6 +344,62 @@ def test_invalid_login_returns_401(secure_client: SyncASGIClient) -> None:
     assert response.status_code == 401
 
 
+def test_login_is_blocked_after_repeated_failures(
+    secure_client: SyncASGIClient,
+) -> None:
+    test_settings = Settings(
+        auth_users=AUTH_USERS,
+        jwt_secret=JWT_SECRET,
+        login_max_attempts=2,
+        login_window_seconds=60,
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+
+    for _ in range(2):
+        response = secure_client.post(
+            "/auth/login",
+            json={"username": "writer", "password": "wrong-password"},
+        )
+        assert response.status_code == 401
+
+    blocked = secure_client.post(
+        "/auth/login",
+        json={"username": "writer", "password": PASSWORDS["writer"]},
+    )
+    other_user = secure_client.post(
+        "/auth/login",
+        json={"username": "reader", "password": PASSWORDS["reader"]},
+    )
+
+    assert blocked.status_code == 429
+    assert int(blocked.headers["retry-after"]) >= 1
+    assert blocked.json()["detail"] == "Too many failed login attempts. Try again later."
+    assert other_user.status_code == 200
+
+
+def test_successful_login_clears_the_failure_counter(
+    secure_client: SyncASGIClient,
+) -> None:
+    test_settings = Settings(
+        auth_users=AUTH_USERS,
+        jwt_secret=JWT_SECRET,
+        login_max_attempts=2,
+        login_window_seconds=60,
+    )
+    app.dependency_overrides[get_settings] = lambda: test_settings
+
+    def attempt(password: str) -> httpx.Response:
+        return secure_client.post(
+            "/auth/login",
+            json={"username": "writer", "password": password},
+        )
+
+    assert attempt("wrong-password").status_code == 401
+    assert attempt(PASSWORDS["writer"]).status_code == 200
+    assert attempt("wrong-password").status_code == 401
+    assert attempt(PASSWORDS["writer"]).status_code == 200
+
+
 def test_reader_can_read_but_cannot_write(
     secure_client: SyncASGIClient,
 ) -> None:

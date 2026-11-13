@@ -100,6 +100,8 @@ funciona en modo anónimo.
 | `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres para emitir y validar tokens. |
 | `JWT_EXPIRATION_MINUTES` | `15` | Duración del access token (por defecto 15 minutos). |
 | `REFRESH_TOKEN_EXPIRATION_DAYS` | `7` | Duración del refresh token de larga duración (por defecto 7 días). |
+| `LOGIN_MAX_ATTEMPTS` | `5` | Intentos fallidos permitidos por usuario e IP dentro de la ventana antes de responder `429`. |
+| `LOGIN_WINDOW_SECONDS` | `300` | Duración en segundos de la ventana fija del limitador de login. |
 | `ALLOW_ANONYMOUS_BOOTSTRAP` | `false` | Con `true`, permite acceso anónimo con rol `admin` cuando `AUTH_USERS` está vacío y la tabla `users` no tiene filas. Solo para demos locales; en producción debe quedar en `false`. |
 | `CORS_ORIGINS` | `http://localhost:5173` | Orígenes HTTP(S) separados por comas; `*` no está permitido. |
 | `RETENTION_DAYS` | `90` | Antigüedad mínima de incidencias antes de poder purgarlas. |

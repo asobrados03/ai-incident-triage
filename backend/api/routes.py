@@ -1,7 +1,7 @@
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from backend.analyzers.core import (
@@ -14,6 +14,7 @@ from backend.api.dependencies import (
     get_audit_repository,
     get_incident_repository,
     get_incident_service,
+    get_login_throttle,
     get_retention_service,
     get_user_service,
 )
@@ -50,6 +51,7 @@ from backend.security.auth import (
     require_role,
     verify_refresh_token,
 )
+from backend.security.login_throttle import LoginThrottle
 from backend.services.incident import (
     IncidentAnalysisConflictError,
     IncidentNotFoundError,
@@ -69,21 +71,33 @@ router = APIRouter()
 @router.post("/auth/login", response_model=LoginResponse)
 def login(
     credentials: LoginRequest,
+    request: Request,
     runtime_settings: Settings = Depends(get_settings),
     user_service: UserService = Depends(get_user_service),
+    throttle: LoginThrottle = Depends(get_login_throttle),
 ) -> LoginResponse:
     if not jwt_secret_configured(runtime_settings):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="JWT_SECRET must be configured before issuing tokens",
         )
+    client = request.client.host if request.client else "unknown"
+    retry_after = throttle.retry_after(credentials.username, client)
+    if retry_after is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many failed login attempts. Try again later.",
+            headers={"Retry-After": str(retry_after)},
+        )
     result = user_service.login(credentials.username, credentials.password)
     if result is None:
+        throttle.record_failure(credentials.username, client)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    throttle.reset(credentials.username, client)
     return LoginResponse(
         access_token=create_access_token(
             result.principal,

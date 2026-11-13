@@ -1,3 +1,5 @@
+import threading
+
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
@@ -15,9 +17,37 @@ from backend.infrastructure.repositories import (
     RetentionRepository,
     UserRepository,
 )
+from backend.security.login_throttle import LoginThrottle
 from backend.services.incident import IncidentService
 from backend.services.retention import RetentionService
 from backend.services.users import UserService
+
+_login_throttles: dict[tuple[int, float], LoginThrottle] = {}
+_login_throttles_lock = threading.Lock()
+
+
+def get_login_throttle(
+    runtime_settings: Settings = Depends(get_settings),
+) -> LoginThrottle:
+    key = (
+        runtime_settings.login_max_attempts,
+        runtime_settings.login_window_seconds,
+    )
+    with _login_throttles_lock:
+        throttle = _login_throttles.get(key)
+        if throttle is None:
+            throttle = LoginThrottle(
+                max_attempts=key[0],
+                window_seconds=key[1],
+            )
+            _login_throttles[key] = throttle
+        return throttle
+
+
+def reset_login_throttle() -> None:
+    """Descarta los limitadores en memoria; solo para tests y reinicios."""
+    with _login_throttles_lock:
+        _login_throttles.clear()
 
 
 def get_incident_service(

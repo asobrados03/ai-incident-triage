@@ -1,5 +1,6 @@
 import pytest
 
+from backend.api.dependencies import reset_login_throttle
 from backend.infrastructure.config import get_settings
 
 
@@ -12,5 +13,7 @@ def _isolate_test_settings(monkeypatch):
     # producción es fail-closed y se cubre en test_security.py.
     monkeypatch.setenv("ALLOW_ANONYMOUS_BOOTSTRAP", "true")
     get_settings.cache_clear()
+    reset_login_throttle()
     yield
     get_settings.cache_clear()
+    reset_login_throttle()
