@@ -94,7 +94,7 @@ funciona en modo anónimo.
 | `DATABASE_URL` | SQLite local absoluta | URL SQLAlchemy; el MVP usa `create_all` más una migración aditiva ligera para columnas nuevas. |
 | `ANALYZER_BACKEND` | `fake` | `fake` para desarrollo/tests o `ollama` explícito. |
 | `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Runtime local de Ollama. |
-| `OLLAMA_MODEL` | `qwen2.5:14b` | Modelo Ollama (por ejemplo `qwen2.5:14b`, `qwen2.5:7b` o `qwen2.5:3b`). |
+| `OLLAMA_MODEL` | `qwen3.5:4b` | Modelo Ollama; el valor por defecto es el único medido en `evaluation/results/`. Acepta cualquier etiqueta instalada. |
 | `OLLAMA_TIMEOUT_SECONDS` | `180` | Timeout finito del adaptador. |
 | `AUTH_USERS` | vacío | Semilla inicial `name:role:password,...` para la tabla `users`. Solo crea usuarios que falten; después la BD manda. Vacío no siembra nada. |
 | `JWT_SECRET` | vacío | Secreto HS256; mínimo 32 caracteres para emitir y validar tokens. |

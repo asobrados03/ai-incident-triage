@@ -35,7 +35,7 @@ flowchart LR
     Service --> Analyzer[IncidentAnalyzer]
     Analyzer --> Fake[FakeAnalyzer]
     Analyzer --> Ollama[OllamaAnalyzer]
-    Ollama --> Runtime[(Ollama local\nqwen2.5:14b)]
+    Ollama --> Runtime[(Ollama local\nqwen3.5:4b)]
     API --> Review[PATCH revisión humana]
     Review --> Service
     Repo --> Triage[(triage_results)]
@@ -374,11 +374,11 @@ no una medida de calidad semántica de un LLM. Ollama es opcional:
 ```powershell
 irm https://ollama.com/install.ps1 | iex
 ollama serve
-ollama pull qwen2.5:14b
+ollama pull qwen3.5:4b
 ollama list
 Invoke-RestMethod http://127.0.0.1:11434/api/tags
 $env:ANALYZER_BACKEND = "ollama"
-$env:OLLAMA_MODEL = "qwen2.5:14b"
+$env:OLLAMA_MODEL = "qwen3.5:4b"
 uvicorn backend.main:app --reload
 ```
 
@@ -437,7 +437,7 @@ comandos de build, ejecución y variables están en [development.md](development
 > con normalización, reglas explicables y señales de impacto; Ollama es un adaptador opcional. La propuesta se persiste
 > separada de la revisión humana, así puedo auditar qué sugirió el sistema y qué cambió la persona. Medí accuracy,
 > macro-F1, precisión/recall de faltantes, matrices de confusión, calibración de confianza y percentiles de latencia en
-> desarrollo, un holdout original, un conjunto de regresión y un holdout ciego escrito después de los cambios; además
+> desarrollo, un holdout original, un conjunto de regresión y un holdout escrito después de los cambios; además
 > puedo comparar fake frente a Ollama con deltas por caso, métrica y latencia. Sé que el fake no mide calidad de LLM y
 > que 12 casos son una muestra pequeña. Elegí SQLite para reducir el coste operativo del MVP, añadí límites, errores
 > explícitos, logs JSON sin contenido sensible, usuarios persistidos con Argon2id, JWT versionados con roles

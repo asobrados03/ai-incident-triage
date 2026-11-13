@@ -52,9 +52,9 @@ produce:
 | Conjunto | Casos | Category | Severity | Priority | Missing info | Confidence | Errores |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | Desarrollo (ajuste) | 28 | 1.000 | 1.000 | 1.000 | 1.000 | 0.893 | 0 |
-| Holdout original (ya no ciego) | 12 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
+| Holdout original (ya no es referencia ciega) | 12 | 1.000 | 1.000 | 1.000 | 1.000 | 1.000 | 0 |
 | Regresión | 12 | 1.000 | 0.917 | 1.000 | 1.000 | 1.000 | 0 |
-| Holdout v2 (ciego) | 12 | 1.000 | 0.917 | 0.917 | 1.000 | 0.917 | 0 |
+| Holdout v2 (post-cambios) | 12 | 1.000 | 0.917 | 0.917 | 1.000 | 0.917 | 0 |
 
 ## Métricas del JSON
 
@@ -175,26 +175,15 @@ La petición manual usada para probar directamente `/api/chat` con `qwen3.5:4b` 
 payload que envía el backend: la aplicación usa el esquema completo de `TriageResult`, `num_predict: 512` y un mensaje
 de sistema, construidos en `backend/analyzers/core.py`.
 
-## Benchmark y evaluación comparativa de LLMs locales
+## Modelo utilizado y alcance de la comparación
 
-Se evaluaron múltiples modelos LLM locales ejecutados sobre Ollama con inferencia en CPU en el hardware de desarrollo
-de referencia (Intel Core i7-1255U, 32 GB RAM, gráficos Intel Iris Xe):
+Solo se ha medido un modelo local: `qwen3.5:4b` (Q4_K_M, 4.2B), el mismo que aparece en el artefacto de la sección
+anterior. No hay benchmark versionado de otros modelos, así que este documento no publica comparativas entre
+`qwen2.5:7b`, `qwen2.5:14b`, `deepseek-r1` ni similares: serían cifras sin artefacto reproducible.
 
-| Modelo | Parámetros / RAM | Latencia media (CPU) | Exactitud semántica | Idioma / Redacción | Caso de uso recomendado |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **`qwen2.5:14b`** *(Default)* | 14B / ~9.0 GB | **~35 – 42 s** | **Máxima (100% acierto categórico)** | 100% español técnico | **Producción / Máxima precisión analítica** y mínimo retrabajo humano. |
-| **`qwen2.5:7b`** | 7B / ~4.7 GB | **~20 – 25 s** | Alta (ligero sesgo a *performance*) | 100% español fluido | **Baja latencia** / mayor frecuencia de peticiones. |
-| **`deepseek-r1:7b`** | 7B / ~4.7 GB | **~70 – 110 s** | Buena (sobreanálisis en casos simples) | Mixto (inglés/español) | Tareas de razonamiento deductivo explícito (`<think>`). |
-| **`qwen3.5:4b`** | 4.2B / ~3.3 GB | **~50 – 60 s** | Moderada | Español | Modelo ligero previo de evaluación inicial. |
-
-**Conclusiones de la comparativa:**
-
-- `qwen2.5:14b` es el modelo configurado por defecto para Ollama en el backend (`backend/infrastructure/config.py` y
-  `.env`), ya que elimina errores de clasificación entre fallos de código (`bug`), configuración (`configuration`) y
-  degradación de rendimiento (`performance`), además de identificar exhaustivamente campos ausentes
-  (`steps_to_reproduce`, `actual_behavior`, `environment`).
-- Para entornos que prioricen velocidad sobre exhaustividad analítica, `qwen2.5:7b` reduce el tiempo de respuesta a la
-  mitad con excelente solidez.
+`OLLAMA_MODEL` acepta cualquier etiqueta instalada en Ollama. El valor por defecto es `qwen3.5:4b` para que el comando
+de reproducción y el ejemplo versionado usen el mismo modelo medido. Cambiarlo no cambia el contrato de la API, pero
+cualquier comparación nueva debe ejecutarse y guardar su propio artefacto.
 
 ## Regenerar los artefactos
 
@@ -219,10 +208,10 @@ python -m evaluation --backend fake --compare-with ollama `
   todavía no está calibrada con suficiente volumen. Deben añadirse reglas solo cuando estén respaldadas por datos y
   regresiones, no por ajustar repetidamente el mismo holdout.
 - **Backend de análisis por defecto y trade-offs de Ollama:** `FakeAnalyzer` se mantiene como backend por defecto para
-  garantizar tests instantáneos y desarrollo reproducible sin dependencias externas. Para inferencia semántica con LLMs
-  locales, `qwen2.5:14b` ofrece máxima precisión y redacción técnica en español (eliminando errores de clasificación en
-  producción), asumiendo una latencia de ~35–42 s por ticket en CPU de desarrollo. Para escenarios de alta concurrencia
-  o menor latencia, `qwen2.5:7b` (~20–25 s) o modelos más ligeros como `qwen2.5:3b` son alternativas recomendables.
-- **Utilidad de la revisión humana:** `missing_information` se evalúa con listas exactas y micro-F1, pero una
+  garantizar tests instantáneos y desarrollo reproducible sin dependencias externas. Ollama es un adaptador opcional y
+  experimental: con `qwen3.5:4b`, el único modelo medido, no supera al baseline en el holdout v2 y añade unos 19 s de
+  mediana por caso en CPU. Promoverlo exigiría definir una rúbrica de prompt y validarla en un holdout nuevo; los datos
+  actuales no lo justifican.
+- **Utilidad de la revisión humana:** `missing_information` se evalúa como conjunto y con micro-F1, pero una
   coincidencia de métricas no garantiza que las preguntas sean accionables. Conviene medir la utilidad de las preguntas,
   registrar feedback de las personas revisoras y recalibrar las propuestas a partir de las correcciones acumuladas.
