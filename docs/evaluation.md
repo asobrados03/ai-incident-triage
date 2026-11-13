@@ -104,7 +104,7 @@ baseline, no como una estimación precisa. Para Ollama, con el runtime ya dispon
 python -m evaluation --backend ollama
 ```
 
-## Comparación real `fake` frente a `ollama`
+## Comparación real `fake` frente a `ollama` (`qwen3.5:4b`)
 
 Ejecutada el 30 de octubre de 2026 sobre `evaluation/data/incidents-holdout-v2.json` (12 casos), con:
 
@@ -175,22 +175,99 @@ La petición manual usada para probar directamente `/api/chat` con `qwen3.5:4b` 
 payload que envía el backend: la aplicación usa el esquema completo de `TriageResult`, `num_predict: 512` y un mensaje
 de sistema, construidos en `backend/analyzers/core.py`.
 
+## Comparación real `fake` frente a `ollama` (`qwen2.5:14b`)
+
+Ejecutada el 13 de noviembre de 2026 sobre el mismo holdout v2 (12 casos), con:
+
+- Modelo `qwen2.5:14b` (Q4_K_M, 14.8B) servido por Ollama en local.
+- Mismo equipo de desarrollo que la ejecución anterior. La latencia depende del hardware.
+- Comando:
+  `python -m evaluation --backend fake --compare-with ollama --dataset evaluation/data/incidents-holdout-v2.json --summary`
+- Artefactos: `evaluation/results/qwen2.5-14b-vs-fake-holdout-v2.json` (detalle por caso) y
+  `evaluation/results/qwen2.5-14b-vs-fake-holdout-v2.txt` (resumen).
+
+| Backend | Category | Severity | Priority | Missing info | Confidence | Macro-F1 cat / sev / prio | p50 | p95 | Errores | Casos completos |
+|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| `fake` | 1.000 | 0.917 | 0.917 | 1.000 | 0.917 | 1.000 / 0.889 / 0.914 | 0.16 ms | 2.02 ms | 0 | 10/12 |
+| `ollama` | 0.750 | 0.583 | 0.583 | 0.000 | 0.083 | 0.870 / 0.521 / 0.633 | 37 114.27 ms | 1 271 599.80 ms | 1 | 0/12 |
+
+Deltas de Ollama respecto al fake: category `-0.250`, severity `-0.333`, priority `-0.333`, missing `-1.000`,
+confidence `-0.833`; macro-F1 `-0.130 / -0.368 / -0.281`; p50 `+37 114.11 ms`; p95 `+1 271 597.78 ms`; errores `+1`.
+De los 12 casos, Ollama no mejora ninguno, empeora 10 y cambia otros 2 sin llegar a acertarlos completos.
+
+| Caso | Esperado (cat / sev / prio) | Ollama (cat / sev / prio) | Fallos |
+|---|---|---|---|
+| `invoice-download-permission` | bug / critical / urgent | configuration / high / high | category, severity, priority, missing_information, confidence |
+| `form-values-not-persisted` | bug / high / high | bug / high / high | missing_information, confidence |
+| `filter-dropdown-missing` | bug / medium / medium | bug / low / medium | severity, missing_information, confidence |
+| `report-export-timeout` | performance / high / high | performance / high / high | missing_information, confidence |
+| `database-url-missing` | configuration / medium / high | configuration / low / medium | severity, priority, missing_information, confidence |
+| `cors-header-not-configured` | configuration / medium / high | configuration / medium / high | missing_information, confidence |
+| `dark-theme-request` | feature / low / low | feature / low / low | missing_information, confidence |
+| `changelog-guide-outdated` | documentation / low / medium | documentation / low / low | priority, missing_information, confidence |
+| `delete-account-request` | feature / low / low | error | timeout |
+| `api-502-after-deploy` | bug / high / urgent | bug / high / urgent | missing_information, confidence |
+| `memory-growth-after-update` | performance / critical / urgent | performance / high / urgent | severity, missing_information, confidence |
+| `search-results-outdated` | bug / medium / medium | performance / medium / high | category, priority, missing_information |
+
+El patrón es el mismo que con el 4b, pero con más latencia: acierta la categoría en 9 de 12, pero no sigue el contrato
+campo a campo.
+
+- **`missing_information`:** falla en los 11 casos válidos. Añade dos o tres campos (`actual_behavior`,
+  `expected_behavior`, `steps_to_reproduce`) incluso cuando la incidencia ya es accionable, en vez de devolver `[]`.
+- **Confianza:** devuelve `medium` en los 11 casos válidos. Solo acierta en el caso cuya etiqueta también es `medium`;
+  el resto debería ser `high`.
+- **Categoría y severidad:** acierta la categoría en 9 de 12 y la severidad en 7 de 12. Los errores se concentran en
+  conceptos que se solapan (`invoice` pasa a `configuration`, `search` a `performance`) y en rebajar severidad.
+- **Prioridad:** es el único campo que mejora respecto al 4b (0.417 → 0.583), pero sigue por debajo del fake.
+- **Latencia:** mediana de 36.8 s en los 11 casos válidos, con un rango de 32.8 s a 44.8 s. Es aproximadamente el doble
+  que la mediana del 4b (19.2 s) y muy lejos de los 0.16 ms del fake.
+
+El caso `delete-account-request` falló con `AnalyzerTimeoutError` tras 180 s, pero la latencia registrada fue de
+2 771 038 ms (~46 min); el `p95` de la tabla está dominado por esa observación. El adaptador no tiene reintentos, así
+que el desfase apunta a una suspensión o bloqueo del equipo durante la generación, no a lógica de la aplicación. Una
+repetición aislada del mismo caso terminó en 29.5 s con `feature / medium / medium / high` y `missing_information=[]`.
+El error se mantiene en el artefacto y se cuenta como error; la repetición solo sirve para descartar que sea
+determinista.
+
+La lectura es que subir de 4B a 14B no arregla el problema principal: falta una rúbrica explícita para
+`missing_information` y `confidence`. El 14b solo mejora prioridad, empata en severidad y empeora categoría, missing y
+confianza, con el doble de latencia. No hay datos para promoverlo a backend por defecto.
+
 ## Modelo utilizado y alcance de la comparación
 
-Solo se ha medido un modelo local: `qwen3.5:4b` (Q4_K_M, 4.2B), el mismo que aparece en el artefacto de la sección
-anterior. No hay benchmark versionado de otros modelos, así que este documento no publica comparativas entre
-`qwen2.5:7b`, `qwen2.5:14b`, `deepseek-r1` ni similares: serían cifras sin artefacto reproducible.
+Se han medido dos modelos locales sobre el holdout v2, con el mismo prompt y el mismo equipo:
 
-`OLLAMA_MODEL` acepta cualquier etiqueta instalada en Ollama. El valor por defecto es `qwen2.5:14b`, el modelo elegido
-para uso local; no tiene métricas medidas en este repositorio. Para reproducir el artefacto de la sección anterior hay
-que fijar explícitamente `OLLAMA_MODEL=qwen3.5:4b`, que fue el modelo realmente medido. Cambiar de modelo no cambia el
-contrato de la API, pero cualquier comparación nueva debe ejecutarse y guardar su propio artefacto.
+- `qwen3.5:4b` (Q4_K_M, 4.2B): artefacto `evaluation/results/ollama-vs-fake-holdout-v2.*`.
+- `qwen2.5:14b` (Q4_K_M, 14.8B): artefacto `evaluation/results/qwen2.5-14b-vs-fake-holdout-v2.*`.
+
+No hay benchmark versionado de otros modelos, así que este documento no publica comparativas entre `qwen2.5:7b`,
+`deepseek-r1` ni similares: serían cifras sin artefacto reproducible. Tampoco se comparan los dos modelos como si
+fueran una benchmark controlada: son ejecuciones separadas, en fechas distintas y con una de ellas afectada por un
+timeout no reproducible.
+
+`OLLAMA_MODEL` acepta cualquier etiqueta instalada en Ollama. El valor por defecto es `qwen2.5:14b`, que está medido,
+pero no supera al baseline ni al 4b en el holdout v2. Para reproducir cada artefacto hay que fijar `OLLAMA_MODEL` al
+modelo correspondiente. Cambiar de modelo no cambia el contrato de la API, pero cualquier comparación nueva debe
+ejecutarse y guardar su propio artefacto.
 
 ## Regenerar los artefactos
+
+Para `qwen2.5:14b`, que es el valor por defecto actual:
 
 ```powershell
 [Console]::OutputEncoding = [Text.UTF8Encoding]::new()
 $OutputEncoding = [Text.UTF8Encoding]::new()
+python -m evaluation --backend fake --compare-with ollama `
+  --dataset evaluation/data/incidents-holdout-v2.json --summary `
+  2> evaluation/results/qwen2.5-14b-vs-fake-holdout-v2.txt `
+  > evaluation/results/qwen2.5-14b-vs-fake-holdout-v2.json
+```
+
+Para reproducir el artefacto histórico de `qwen3.5:4b`, fija el modelo antes de ejecutar:
+
+```powershell
+$env:OLLAMA_MODEL = "qwen3.5:4b"
 python -m evaluation --backend fake --compare-with ollama `
   --dataset evaluation/data/incidents-holdout-v2.json --summary `
   2> evaluation/results/ollama-vs-fake-holdout-v2.txt `
@@ -210,10 +287,11 @@ python -m evaluation --backend fake --compare-with ollama `
   regresiones, no por ajustar repetidamente el mismo holdout.
 - **Backend de análisis por defecto y trade-offs de Ollama:** `FakeAnalyzer` se mantiene como backend por defecto para
   garantizar tests instantáneos y desarrollo reproducible sin dependencias externas. Ollama es un adaptador opcional y
-  experimental: con `qwen3.5:4b`, el único modelo medido, no supera al baseline en el holdout v2 y añade unos 19 s de
-  mediana por caso en CPU. El valor por defecto de `OLLAMA_MODEL` es `qwen2.5:14b` para uso local, pero no se ha medido
-  en este repositorio. Promover Ollama exigiría definir una rúbrica de prompt y validarla en un holdout nuevo; los datos
-  actuales no lo justifican.
+  experimental: ni `qwen3.5:4b` ni `qwen2.5:14b` superan al baseline en el holdout v2. El 14b solo mejora prioridad,
+  empata en severidad y empeora categoría, `missing_information` y confianza, con una mediana de 36.8 s por caso válido
+  frente a 19.2 s del 4b. Una ejecución del 14b registró además un timeout de 180 s que no se reprodujo; el `p95` de ese
+  artefacto está dominado por esa observación, así que la referencia de coste es el `p50`. Promover Ollama exigiría
+  definir una rúbrica de prompt y validarla en un holdout nuevo; los datos actuales no lo justifican.
 - **Utilidad de la revisión humana:** `missing_information` se evalúa como conjunto y con micro-F1, pero una
   coincidencia de métricas no garantiza que las preguntas sean accionables. Conviene medir la utilidad de las preguntas,
   registrar feedback de las personas revisoras y recalibrar las propuestas a partir de las correcciones acumuladas.

@@ -1,0 +1,1056 @@
+{
+  "baseline": {
+    "backend": "fake",
+    "metrics": {
+      "total": 12,
+      "valid_responses": 12,
+      "category_accuracy": 1.0,
+      "severity_accuracy": 0.9166666666666666,
+      "priority_accuracy": 0.9166666666666666,
+      "missing_information_accuracy": 1.0,
+      "confidence_accuracy": 0.9166666666666666,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms_total": 6.03939999564318,
+      "latency_ms_average": 0.503283332970265,
+      "latency_ms_p50": 0.16294999841193203,
+      "latency_ms_p95": 2.0228299987138576,
+      "category_macro_f1": 1.0,
+      "severity_macro_f1": 0.8888888888888888,
+      "priority_macro_f1": 0.9142857142857143,
+      "missing_information_precision": 1.0,
+      "missing_information_recall": 1.0,
+      "missing_information_f1": 1.0,
+      "per_class": {
+        "category": {
+          "bug": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 5
+          },
+          "feature": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          },
+          "documentation": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1
+          },
+          "configuration": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          },
+          "performance": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 3
+          },
+          "medium": {
+            "precision": 0.8,
+            "recall": 1.0,
+            "f1": 0.888888888888889,
+            "support": 4
+          },
+          "high": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 3
+          },
+          "critical": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 2
+          }
+        },
+        "priority": {
+          "low": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 2
+          },
+          "medium": {
+            "precision": 0.75,
+            "recall": 1.0,
+            "f1": 0.8571428571428571,
+            "support": 3
+          },
+          "high": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 4
+          },
+          "urgent": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8,
+            "support": 3
+          }
+        },
+        "confidence": {
+          "low": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "medium": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 1
+          },
+          "high": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 11
+          }
+        }
+      },
+      "confusion_matrix": {
+        "category": {
+          "bug": {
+            "bug": 5,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 0
+          },
+          "feature": {
+            "bug": 0,
+            "feature": 2,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 0
+          },
+          "documentation": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 1,
+            "configuration": 0,
+            "performance": 0
+          },
+          "configuration": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 2,
+            "performance": 0
+          },
+          "performance": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "low": 3,
+            "medium": 0,
+            "high": 0,
+            "critical": 0
+          },
+          "medium": {
+            "low": 0,
+            "medium": 4,
+            "high": 0,
+            "critical": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 3,
+            "critical": 0
+          },
+          "critical": {
+            "low": 0,
+            "medium": 1,
+            "high": 0,
+            "critical": 1
+          }
+        },
+        "priority": {
+          "low": {
+            "low": 2,
+            "medium": 0,
+            "high": 0,
+            "urgent": 0
+          },
+          "medium": {
+            "low": 0,
+            "medium": 3,
+            "high": 0,
+            "urgent": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 4,
+            "urgent": 0
+          },
+          "urgent": {
+            "low": 0,
+            "medium": 1,
+            "high": 0,
+            "urgent": 2
+          }
+        },
+        "confidence": {
+          "low": {
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "medium": {
+            "low": 1,
+            "medium": 0,
+            "high": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 11
+          }
+        }
+      },
+      "confidence_calibration": {
+        "low": {
+          "cases": 1,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "medium": {
+          "cases": 0,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "high": {
+          "cases": 11,
+          "fully_correct": 10,
+          "accuracy": 0.9090909090909091
+        }
+      },
+      "errors_by_category": {
+        "performance": 1,
+        "bug": 1
+      }
+    }
+  },
+  "candidate": {
+    "backend": "ollama",
+    "metrics": {
+      "total": 12,
+      "valid_responses": 11,
+      "category_accuracy": 0.75,
+      "severity_accuracy": 0.5833333333333334,
+      "priority_accuracy": 0.5833333333333334,
+      "missing_information_accuracy": 0.0,
+      "confidence_accuracy": 0.08333333333333333,
+      "errors": 1,
+      "error_rate": 0.08333333333333333,
+      "latency_ms_total": 3190105.441499996,
+      "latency_ms_average": 265842.12012499967,
+      "latency_ms_p50": 37114.270100000795,
+      "latency_ms_p95": 1271599.8027749981,
+      "category_macro_f1": 0.8699999999999999,
+      "severity_macro_f1": 0.5208333333333333,
+      "priority_macro_f1": 0.6333333333333333,
+      "missing_information_precision": 0.0,
+      "missing_information_recall": 1.0,
+      "missing_information_f1": 0.0,
+      "per_class": {
+        "category": {
+          "bug": {
+            "precision": 1.0,
+            "recall": 0.6,
+            "f1": 0.7499999999999999,
+            "support": 5
+          },
+          "feature": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1
+          },
+          "documentation": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1": 1.0,
+            "support": 1
+          },
+          "configuration": {
+            "precision": 0.6666666666666666,
+            "recall": 1.0,
+            "f1": 0.8,
+            "support": 2
+          },
+          "performance": {
+            "precision": 0.6666666666666666,
+            "recall": 1.0,
+            "f1": 0.8,
+            "support": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "precision": 0.5,
+            "recall": 1.0,
+            "f1": 0.6666666666666666,
+            "support": 2
+          },
+          "medium": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1": 0.6666666666666666,
+            "support": 4
+          },
+          "high": {
+            "precision": 0.6,
+            "recall": 1.0,
+            "f1": 0.7499999999999999,
+            "support": 3
+          },
+          "critical": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 2
+          }
+        },
+        "priority": {
+          "low": {
+            "precision": 0.5,
+            "recall": 1.0,
+            "f1": 0.6666666666666666,
+            "support": 1
+          },
+          "medium": {
+            "precision": 0.5,
+            "recall": 0.3333333333333333,
+            "f1": 0.4,
+            "support": 3
+          },
+          "high": {
+            "precision": 0.6,
+            "recall": 0.75,
+            "f1": 0.6666666666666665,
+            "support": 4
+          },
+          "urgent": {
+            "precision": 1.0,
+            "recall": 0.6666666666666666,
+            "f1": 0.8,
+            "support": 3
+          }
+        },
+        "confidence": {
+          "low": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 0
+          },
+          "medium": {
+            "precision": 0.09090909090909091,
+            "recall": 1.0,
+            "f1": 0.16666666666666669,
+            "support": 1
+          },
+          "high": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "support": 10
+          }
+        }
+      },
+      "confusion_matrix": {
+        "category": {
+          "bug": {
+            "bug": 3,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 1,
+            "performance": 1
+          },
+          "feature": {
+            "bug": 0,
+            "feature": 1,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 0
+          },
+          "documentation": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 1,
+            "configuration": 0,
+            "performance": 0
+          },
+          "configuration": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 2,
+            "performance": 0
+          },
+          "performance": {
+            "bug": 0,
+            "feature": 0,
+            "documentation": 0,
+            "configuration": 0,
+            "performance": 2
+          }
+        },
+        "severity": {
+          "low": {
+            "low": 2,
+            "medium": 0,
+            "high": 0,
+            "critical": 0
+          },
+          "medium": {
+            "low": 2,
+            "medium": 2,
+            "high": 0,
+            "critical": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 0,
+            "high": 3,
+            "critical": 0
+          },
+          "critical": {
+            "low": 0,
+            "medium": 0,
+            "high": 2,
+            "critical": 0
+          }
+        },
+        "priority": {
+          "low": {
+            "low": 1,
+            "medium": 0,
+            "high": 0,
+            "urgent": 0
+          },
+          "medium": {
+            "low": 1,
+            "medium": 1,
+            "high": 1,
+            "urgent": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 1,
+            "high": 3,
+            "urgent": 0
+          },
+          "urgent": {
+            "low": 0,
+            "medium": 0,
+            "high": 1,
+            "urgent": 2
+          }
+        },
+        "confidence": {
+          "low": {
+            "low": 0,
+            "medium": 0,
+            "high": 0
+          },
+          "medium": {
+            "low": 0,
+            "medium": 1,
+            "high": 0
+          },
+          "high": {
+            "low": 0,
+            "medium": 10,
+            "high": 0
+          }
+        }
+      },
+      "confidence_calibration": {
+        "low": {
+          "cases": 0,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "medium": {
+          "cases": 11,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        },
+        "high": {
+          "cases": 0,
+          "fully_correct": 0,
+          "accuracy": 0.0
+        }
+      },
+      "errors_by_category": {
+        "bug": 5,
+        "performance": 2,
+        "configuration": 2,
+        "feature": 2,
+        "documentation": 1
+      }
+    }
+  },
+  "deltas": {
+    "category_accuracy": -0.25,
+    "severity_accuracy": -0.33333333333333326,
+    "priority_accuracy": -0.33333333333333326,
+    "missing_information_accuracy": -1.0,
+    "confidence_accuracy": -0.8333333333333333,
+    "category_macro_f1": -0.13000000000000012,
+    "severity_macro_f1": -0.3680555555555556,
+    "priority_macro_f1": -0.28095238095238095,
+    "latency_ms_p50": 37114.10715000238,
+    "latency_ms_p95": 1271597.7799449994,
+    "error_rate": 0.08333333333333333
+  },
+  "cases": {
+    "improved": [],
+    "worsened": [
+      "invoice-download-permission",
+      "form-values-not-persisted",
+      "filter-dropdown-missing",
+      "report-export-timeout",
+      "database-url-missing",
+      "cors-header-not-configured",
+      "dark-theme-request",
+      "changelog-guide-outdated",
+      "delete-account-request",
+      "api-502-after-deploy"
+    ],
+    "changed": [
+      "memory-growth-after-update",
+      "search-results-outdated"
+    ],
+    "unchanged": [],
+    "detail": {
+      "invoice-download-permission": {
+        "expected": {
+          "category": "bug",
+          "severity": "critical",
+          "priority": "urgent",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "critical",
+            "priority": "urgent",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 3.59549999848241,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior",
+              "steps_to_reproduce"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "category",
+            "severity",
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 36250.93139999808,
+          "error": null
+        }
+      },
+      "form-values-not-persisted": {
+        "expected": {
+          "category": "bug",
+          "severity": "high",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.36420000105863437,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 32791.226400000596,
+          "error": null
+        }
+      },
+      "filter-dropdown-missing": {
+        "expected": {
+          "category": "bug",
+          "severity": "medium",
+          "priority": "medium",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.2719000003708061,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "low",
+            "priority": "medium",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior",
+              "steps_to_reproduce"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "severity",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 44786.59020000123,
+          "error": null
+        }
+      },
+      "report-export-timeout": {
+        "expected": {
+          "category": "performance",
+          "severity": "high",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.736099998903228,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "high",
+            "priority": "high",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 43449.947899996914,
+          "error": null
+        }
+      },
+      "database-url-missing": {
+        "expected": {
+          "category": "configuration",
+          "severity": "medium",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.17689999731373973,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "low",
+            "priority": "medium",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "severity",
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 36274.01839999948,
+          "error": null
+        }
+      },
+      "cors-header-not-configured": {
+        "expected": {
+          "category": "configuration",
+          "severity": "medium",
+          "priority": "high",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.12229999992996454,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "configuration",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 37438.77369999973,
+          "error": null
+        }
+      },
+      "dark-theme-request": {
+        "expected": {
+          "category": "feature",
+          "severity": "low",
+          "priority": "low",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.07959999857121147,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior",
+              "steps_to_reproduce"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 35770.385499999975,
+          "error": null
+        }
+      },
+      "changelog-guide-outdated": {
+        "expected": {
+          "category": "documentation",
+          "severity": "low",
+          "priority": "medium",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "documentation",
+            "severity": "low",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.09950000094249845,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "documentation",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior",
+              "steps_to_reproduce"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 39329.07730000079,
+          "error": null
+        }
+      },
+      "delete-account-request": {
+        "expected": {
+          "category": "feature",
+          "severity": "low",
+          "priority": "low",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "low",
+            "priority": "low",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.10169999950448982,
+          "error": null
+        },
+        "candidate": {
+          "valid": false,
+          "actual": null,
+          "mismatches": [],
+          "latency_ms": 2771038.1736999988,
+          "error": "AnalyzerTimeoutError: Ollama timed out after 180.0 seconds"
+        }
+      },
+      "api-502-after-deploy": {
+        "expected": {
+          "category": "bug",
+          "severity": "high",
+          "priority": "urgent",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "urgent",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [],
+          "latency_ms": 0.10970000221277587,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "high",
+            "priority": "urgent",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 41668.442199999845,
+          "error": null
+        }
+      },
+      "memory-growth-after-update": {
+        "expected": {
+          "category": "performance",
+          "severity": "critical",
+          "priority": "urgent",
+          "missing_information": [],
+          "confidence": "high"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "high"
+          },
+          "mismatches": [
+            "severity",
+            "priority"
+          ],
+          "latency_ms": 0.14899999951012433,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "high",
+            "priority": "urgent",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "severity",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 36789.76650000186,
+          "error": null
+        }
+      },
+      "search-results-outdated": {
+        "expected": {
+          "category": "bug",
+          "severity": "medium",
+          "priority": "medium",
+          "missing_information": [],
+          "confidence": "medium"
+        },
+        "baseline": {
+          "valid": true,
+          "actual": {
+            "category": "bug",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [],
+            "confidence": "low"
+          },
+          "mismatches": [
+            "confidence"
+          ],
+          "latency_ms": 0.23299999884329736,
+          "error": null
+        },
+        "candidate": {
+          "valid": true,
+          "actual": {
+            "category": "performance",
+            "severity": "medium",
+            "priority": "high",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "category",
+            "priority",
+            "missing_information"
+          ],
+          "latency_ms": 34518.10829999886,
+          "error": null
+        }
+      }
+    }
+  }
+}
