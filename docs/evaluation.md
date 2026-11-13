@@ -181,9 +181,10 @@ Solo se ha medido un modelo local: `qwen3.5:4b` (Q4_K_M, 4.2B), el mismo que apa
 anterior. No hay benchmark versionado de otros modelos, así que este documento no publica comparativas entre
 `qwen2.5:7b`, `qwen2.5:14b`, `deepseek-r1` ni similares: serían cifras sin artefacto reproducible.
 
-`OLLAMA_MODEL` acepta cualquier etiqueta instalada en Ollama. El valor por defecto es `qwen3.5:4b` para que el comando
-de reproducción y el ejemplo versionado usen el mismo modelo medido. Cambiarlo no cambia el contrato de la API, pero
-cualquier comparación nueva debe ejecutarse y guardar su propio artefacto.
+`OLLAMA_MODEL` acepta cualquier etiqueta instalada en Ollama. El valor por defecto es `qwen2.5:14b`, el modelo elegido
+para uso local; no tiene métricas medidas en este repositorio. Para reproducir el artefacto de la sección anterior hay
+que fijar explícitamente `OLLAMA_MODEL=qwen3.5:4b`, que fue el modelo realmente medido. Cambiar de modelo no cambia el
+contrato de la API, pero cualquier comparación nueva debe ejecutarse y guardar su propio artefacto.
 
 ## Regenerar los artefactos
 
@@ -210,7 +211,8 @@ python -m evaluation --backend fake --compare-with ollama `
 - **Backend de análisis por defecto y trade-offs de Ollama:** `FakeAnalyzer` se mantiene como backend por defecto para
   garantizar tests instantáneos y desarrollo reproducible sin dependencias externas. Ollama es un adaptador opcional y
   experimental: con `qwen3.5:4b`, el único modelo medido, no supera al baseline en el holdout v2 y añade unos 19 s de
-  mediana por caso en CPU. Promoverlo exigiría definir una rúbrica de prompt y validarla en un holdout nuevo; los datos
+  mediana por caso en CPU. El valor por defecto de `OLLAMA_MODEL` es `qwen2.5:14b` para uso local, pero no se ha medido
+  en este repositorio. Promover Ollama exigiría definir una rúbrica de prompt y validarla en un holdout nuevo; los datos
   actuales no lo justifican.
 - **Utilidad de la revisión humana:** `missing_information` se evalúa como conjunto y con micro-F1, pero una
   coincidencia de métricas no garantiza que las preguntas sean accionables. Conviene medir la utilidad de las preguntas,

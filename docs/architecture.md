@@ -35,7 +35,7 @@ flowchart LR
     Service --> Analyzer[IncidentAnalyzer]
     Analyzer --> Fake[FakeAnalyzer]
     Analyzer --> Ollama[OllamaAnalyzer]
-    Ollama --> Runtime[(Ollama local\nqwen3.5:4b)]
+    Ollama --> Runtime[(Ollama local\nqwen2.5:14b)]
     API --> Review[PATCH revisión humana]
     Review --> Service
     Repo --> Triage[(triage_results)]
@@ -374,11 +374,11 @@ no una medida de calidad semántica de un LLM. Ollama es opcional:
 ```powershell
 irm https://ollama.com/install.ps1 | iex
 ollama serve
-ollama pull qwen3.5:4b
+ollama pull qwen2.5:14b
 ollama list
 Invoke-RestMethod http://127.0.0.1:11434/api/tags
 $env:ANALYZER_BACKEND = "ollama"
-$env:OLLAMA_MODEL = "qwen3.5:4b"
+$env:OLLAMA_MODEL = "qwen2.5:14b"
 uvicorn backend.main:app --reload
 ```
 
