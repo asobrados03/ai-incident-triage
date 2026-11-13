@@ -11,10 +11,10 @@
       "confidence_accuracy": 0.9166666666666666,
       "errors": 0,
       "error_rate": 0.0,
-      "latency_ms_total": 6.03939999564318,
-      "latency_ms_average": 0.503283332970265,
-      "latency_ms_p50": 0.16294999841193203,
-      "latency_ms_p95": 2.0228299987138576,
+      "latency_ms_total": 4.032300006656442,
+      "latency_ms_average": 0.33602500055470347,
+      "latency_ms_p50": 0.13730000137002207,
+      "latency_ms_p95": 1.1859500016726074,
       "category_macro_f1": 1.0,
       "severity_macro_f1": 0.8888888888888888,
       "priority_macro_f1": 0.9142857142857143,
@@ -262,21 +262,21 @@
     "backend": "ollama",
     "metrics": {
       "total": 12,
-      "valid_responses": 11,
-      "category_accuracy": 0.75,
+      "valid_responses": 12,
+      "category_accuracy": 0.8333333333333334,
       "severity_accuracy": 0.5833333333333334,
       "priority_accuracy": 0.5833333333333334,
       "missing_information_accuracy": 0.0,
       "confidence_accuracy": 0.08333333333333333,
-      "errors": 1,
-      "error_rate": 0.08333333333333333,
-      "latency_ms_total": 3190105.441499996,
-      "latency_ms_average": 265842.12012499967,
-      "latency_ms_p50": 37114.270100000795,
-      "latency_ms_p95": 1271599.8027749981,
+      "errors": 0,
+      "error_rate": 0.0,
+      "latency_ms_total": 503235.2621999999,
+      "latency_ms_average": 41936.27184999999,
+      "latency_ms_p50": 39493.0529000012,
+      "latency_ms_p95": 55963.70403499767,
       "category_macro_f1": 0.8699999999999999,
-      "severity_macro_f1": 0.5208333333333333,
-      "priority_macro_f1": 0.6333333333333333,
+      "severity_macro_f1": 0.4732142857142857,
+      "priority_macro_f1": 0.575,
       "missing_information_precision": 0.0,
       "missing_information_recall": 1.0,
       "missing_information_f1": 0.0,
@@ -292,7 +292,7 @@
             "precision": 1.0,
             "recall": 1.0,
             "f1": 1.0,
-            "support": 1
+            "support": 2
           },
           "documentation": {
             "precision": 1.0,
@@ -316,14 +316,14 @@
         "severity": {
           "low": {
             "precision": 0.5,
-            "recall": 1.0,
-            "f1": 0.6666666666666666,
-            "support": 2
+            "recall": 0.6666666666666666,
+            "f1": 0.5714285714285715,
+            "support": 3
           },
           "medium": {
-            "precision": 1.0,
+            "precision": 0.6666666666666666,
             "recall": 0.5,
-            "f1": 0.6666666666666666,
+            "f1": 0.5714285714285715,
             "support": 4
           },
           "high": {
@@ -342,14 +342,14 @@
         "priority": {
           "low": {
             "precision": 0.5,
-            "recall": 1.0,
-            "f1": 0.6666666666666666,
-            "support": 1
+            "recall": 0.5,
+            "f1": 0.5,
+            "support": 2
           },
           "medium": {
-            "precision": 0.5,
+            "precision": 0.3333333333333333,
             "recall": 0.3333333333333333,
-            "f1": 0.4,
+            "f1": 0.3333333333333333,
             "support": 3
           },
           "high": {
@@ -373,16 +373,16 @@
             "support": 0
           },
           "medium": {
-            "precision": 0.09090909090909091,
+            "precision": 0.08333333333333333,
             "recall": 1.0,
-            "f1": 0.16666666666666669,
+            "f1": 0.15384615384615385,
             "support": 1
           },
           "high": {
             "precision": 0.0,
             "recall": 0.0,
             "f1": 0.0,
-            "support": 10
+            "support": 11
           }
         }
       },
@@ -397,7 +397,7 @@
           },
           "feature": {
             "bug": 0,
-            "feature": 1,
+            "feature": 2,
             "documentation": 0,
             "configuration": 0,
             "performance": 0
@@ -427,7 +427,7 @@
         "severity": {
           "low": {
             "low": 2,
-            "medium": 0,
+            "medium": 1,
             "high": 0,
             "critical": 0
           },
@@ -453,7 +453,7 @@
         "priority": {
           "low": {
             "low": 1,
-            "medium": 0,
+            "medium": 1,
             "high": 0,
             "urgent": 0
           },
@@ -489,7 +489,7 @@
           },
           "high": {
             "low": 0,
-            "medium": 10,
+            "medium": 11,
             "high": 0
           }
         }
@@ -501,7 +501,7 @@
           "accuracy": 0.0
         },
         "medium": {
-          "cases": 11,
+          "cases": 12,
           "fully_correct": 0,
           "accuracy": 0.0
         },
@@ -521,17 +521,17 @@
     }
   },
   "deltas": {
-    "category_accuracy": -0.25,
+    "category_accuracy": -0.16666666666666663,
     "severity_accuracy": -0.33333333333333326,
     "priority_accuracy": -0.33333333333333326,
     "missing_information_accuracy": -1.0,
     "confidence_accuracy": -0.8333333333333333,
     "category_macro_f1": -0.13000000000000012,
-    "severity_macro_f1": -0.3680555555555556,
-    "priority_macro_f1": -0.28095238095238095,
-    "latency_ms_p50": 37114.10715000238,
-    "latency_ms_p95": 1271597.7799449994,
-    "error_rate": 0.08333333333333333
+    "severity_macro_f1": -0.41567460317460314,
+    "priority_macro_f1": -0.3392857142857143,
+    "latency_ms_p50": 39492.91559999983,
+    "latency_ms_p95": 55962.518084995994,
+    "error_rate": 0.0
   },
   "cases": {
     "improved": [],
@@ -571,7 +571,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 3.59549999848241,
+          "latency_ms": 2.1908000016992446,
           "error": null
         },
         "candidate": {
@@ -594,7 +594,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 36250.93139999808,
+          "latency_ms": 67146.11279999735,
           "error": null
         }
       },
@@ -616,7 +616,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.36420000105863437,
+          "latency_ms": 0.36380000165081583,
           "error": null
         },
         "candidate": {
@@ -635,7 +635,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 32791.226400000596,
+          "latency_ms": 35294.69419999805,
           "error": null
         }
       },
@@ -657,7 +657,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.2719000003708061,
+          "latency_ms": 0.2767000005405862,
           "error": null
         },
         "candidate": {
@@ -678,7 +678,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 44786.59020000123,
+          "latency_ms": 46814.46049999795,
           "error": null
         }
       },
@@ -700,7 +700,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.736099998903228,
+          "latency_ms": 0.14020000162418,
           "error": null
         },
         "candidate": {
@@ -719,7 +719,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 43449.947899996914,
+          "latency_ms": 44881.50570000289,
           "error": null
         }
       },
@@ -741,7 +741,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.17689999731373973,
+          "latency_ms": 0.19260000044596381,
           "error": null
         },
         "candidate": {
@@ -762,7 +762,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 36274.01839999948,
+          "latency_ms": 37278.01390000241,
           "error": null
         }
       },
@@ -784,7 +784,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.12229999992996454,
+          "latency_ms": 0.13190000026952475,
           "error": null
         },
         "candidate": {
@@ -803,7 +803,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 37438.77369999973,
+          "latency_ms": 38514.4747000013,
           "error": null
         }
       },
@@ -825,7 +825,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.07959999857121147,
+          "latency_ms": 0.08910000178730115,
           "error": null
         },
         "candidate": {
@@ -845,7 +845,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 35770.385499999975,
+          "latency_ms": 36773.747999999614,
           "error": null
         }
       },
@@ -867,7 +867,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.09950000094249845,
+          "latency_ms": 0.11269999959040433,
           "error": null
         },
         "candidate": {
@@ -888,7 +888,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 39329.07730000079,
+          "latency_ms": 40471.631100001105,
           "error": null
         }
       },
@@ -910,15 +910,30 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.10169999950448982,
+          "latency_ms": 0.11670000094454736,
           "error": null
         },
         "candidate": {
-          "valid": false,
-          "actual": null,
-          "mismatches": [],
-          "latency_ms": 2771038.1736999988,
-          "error": "AnalyzerTimeoutError: Ollama timed out after 180.0 seconds"
+          "valid": true,
+          "actual": {
+            "category": "feature",
+            "severity": "medium",
+            "priority": "medium",
+            "missing_information": [
+              "actual_behavior",
+              "expected_behavior",
+              "steps_to_reproduce"
+            ],
+            "confidence": "medium"
+          },
+          "mismatches": [
+            "severity",
+            "priority",
+            "missing_information",
+            "confidence"
+          ],
+          "latency_ms": 41159.65460000007,
+          "error": null
         }
       },
       "api-502-after-deploy": {
@@ -939,7 +954,7 @@
             "confidence": "high"
           },
           "mismatches": [],
-          "latency_ms": 0.10970000221277587,
+          "latency_ms": 0.12429999696905725,
           "error": null
         },
         "candidate": {
@@ -958,7 +973,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 41668.442199999845,
+          "latency_ms": 41491.42529999881,
           "error": null
         }
       },
@@ -983,7 +998,7 @@
             "severity",
             "priority"
           ],
-          "latency_ms": 0.14899999951012433,
+          "latency_ms": 0.15910000001895241,
           "error": null
         },
         "candidate": {
@@ -1003,7 +1018,7 @@
             "missing_information",
             "confidence"
           ],
-          "latency_ms": 36789.76650000186,
+          "latency_ms": 36825.045800000225,
           "error": null
         }
       },
@@ -1027,7 +1042,7 @@
           "mismatches": [
             "confidence"
           ],
-          "latency_ms": 0.23299999884329736,
+          "latency_ms": 0.13440000111586414,
           "error": null
         },
         "candidate": {
@@ -1047,7 +1062,7 @@
             "priority",
             "missing_information"
           ],
-          "latency_ms": 34518.10829999886,
+          "latency_ms": 36584.49560000008,
           "error": null
         }
       }

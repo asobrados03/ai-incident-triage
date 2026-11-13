@@ -10,30 +10,30 @@ Errores por categoría esperada: bug=1, performance=1
 Confusiones severity: critical->medium=1
 Confusiones priority: urgent->medium=1
 Resumen de evaluación (ollama)
-Casos: 12 | Válidos: 11 | Errores: 1
-Accuracy: category=0.750 severity=0.583 priority=0.583 missing=0.000 confidence=0.083
-Macro-F1: category=0.870 severity=0.521 priority=0.633
+Casos: 12 | Válidos: 12 | Errores: 0
+Accuracy: category=0.833 severity=0.583 priority=0.583 missing=0.000 confidence=0.083
+Macro-F1: category=0.870 severity=0.473 priority=0.575
 Calibración de confianza (nivel -> aciertos/casos):
   low: 0/0 (0.000)
-  medium: 0/11 (0.000)
+  medium: 0/12 (0.000)
   high: 0/0 (0.000)
 Errores por categoría esperada: bug=5, configuration=2, documentation=1, feature=2, performance=2
 Confusiones category: bug->performance=1, bug->configuration=1
-Confusiones severity: medium->low=2, critical->high=2
+Confusiones severity: medium->low=2, critical->high=2, low->medium=1
 Confusiones priority: urgent->high=1, medium->low=1, medium->high=1
 Comparación fake -> ollama
 Casos: 12 | Mejoras: 0 | Empeoramientos: 10 | Cambios: 2 | Sin cambios: 0
 Métricas (baseline -> candidato, delta):
-  category: 1.000 -> 0.750 (-0.250)
+  category: 1.000 -> 0.833 (-0.167)
   severity: 0.917 -> 0.583 (-0.333)
   priority: 0.917 -> 0.583 (-0.333)
   missing: 1.000 -> 0.000 (-1.000)
   confidence: 0.917 -> 0.083 (-0.833)
   macro-F1 category: 1.000 -> 0.870 (-0.130)
-  macro-F1 severity: 0.889 -> 0.521 (-0.368)
-  macro-F1 priority: 0.914 -> 0.633 (-0.281)
-  latency p50: 0.16 -> 37114.27 ms (+37114.11)
-  latency p95: 2.02 -> 1271599.80 ms (+1271597.78)
-  errors: 0 -> 1 (+1)
+  macro-F1 severity: 0.889 -> 0.473 (-0.416)
+  macro-F1 priority: 0.914 -> 0.575 (-0.339)
+  latency p50: 0.14 -> 39493.05 ms (+39492.92)
+  latency p95: 1.19 -> 55963.70 ms (+55962.52)
+  errors: 0 -> 0 (+0)
 Empeoran: invoice-download-permission, form-values-not-persisted, filter-dropdown-missing, report-export-timeout, database-url-missing, cors-header-not-configured, dark-theme-request, changelog-guide-outdated, delete-account-request, api-502-after-deploy
 Cambian sin pasar a correcto: memory-growth-after-update, search-results-outdated
